@@ -39,7 +39,8 @@ import de.ipbhalle.metfrag.tools.MolecularFormulaTools;
 
 public class ChemSpider {
 	
-	private static String token = "4d6c67db-65d0-474e-9f5c-f70f5c85111c";
+	private static String token = "eeca1d0f-4c03-4d81-aa96-328cdccf171a"; 
+		//"a1004d0f-9d37-47e0-acdd-35e58e34f603";
 	
 	/**
 	 * Gets Chemspider compound ID's by mass.
