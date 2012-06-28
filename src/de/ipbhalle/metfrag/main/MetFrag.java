@@ -572,6 +572,7 @@ public class MetFrag {
 		PubChemWebService pw = null;
 		results = new FragmenterResult();
 		List<String> candidates = null;
+		// disabled for online-only mode
 		if(molecularFormula != null && !molecularFormula.equals("") || (databaseID != null && !databaseID.equals("")))
 		{
 			pw = new PubChemWebService();
@@ -628,7 +629,9 @@ public class MetFrag {
 			for (String string : list) {
 				//get corresponding structure
 				IAtomContainer tmp = candidateToStructure.get(string);				
-				results.add(new MetFragResult(string, tmp, scores[i], candidateToFragments.get(string).size()));
+				//results.add(new MetFragResult(string, tmp, scores[i], candidateToFragments.get(string).size()));
+				// add fragments to results
+				results.add(new MetFragResult(string, tmp, scores[i], candidateToFragments.get(string).size(), candidateToFragments.get(string)));
 			}
 		}		
 		
