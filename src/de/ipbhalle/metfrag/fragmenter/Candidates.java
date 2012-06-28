@@ -67,21 +67,24 @@ public class Candidates {
 		
 		if(database.equals("kegg") && databaseID.equals(""))
 		{
-			if(molecularFormula != "")
+			//if(molecularFormula != "")
+			if(!molecularFormula.isEmpty())
 				candidates = KeggWebservice.KEGGbySumFormula(molecularFormula);
 			else
 				candidates = KeggWebservice.KEGGbyMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
 		}
 		else if(database.equals("chemspider") && databaseID.equals(""))
 		{
-			if(molecularFormula != "")
+			//if(molecularFormula != "")
+			if(!molecularFormula.isEmpty())
 				candidates = ChemSpider.getChemspiderBySumFormula(molecularFormula);
 			else
 				candidates = ChemSpider.getChemspiderByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
 		}
 		else if(database.equals("pubchem") && databaseID.equals(""))
 		{
-			if(molecularFormula != "")
+			//if(molecularFormula != "")
+			if(!molecularFormula.isEmpty())
 				candidates = pubchem.getHitsbySumFormula(molecularFormula, useIPBProxy);
 			else
 				candidates = pubchem.getHitsByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE, useIPBProxy);
