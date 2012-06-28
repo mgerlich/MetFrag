@@ -73,7 +73,7 @@ public class PubChemLocal {
 	 * @throws SQLException the SQL exception
 	 * @throws ClassNotFoundException the class not found exception
 	 */
-	public List<String> getHits(double lowerBound, double upperBound) throws SQLException, ClassNotFoundException
+	public List<String> getHits(double lowerBound, double upperBound) throws ClassNotFoundException
 	{
 		List<String> candidatesString = new ArrayList<String>();    
 		System.out.println("Lower bound: " + lowerBound + " Upper bound: " + upperBound);
@@ -81,21 +81,52 @@ public class PubChemLocal {
         String driver = "com.mysql.jdbc.Driver"; 
         Connection con = null; 
 		Class.forName(driver); 
-		DriverManager.registerDriver (new com.mysql.jdbc.Driver()); 
+		try {
+			DriverManager.registerDriver (new com.mysql.jdbc.Driver());
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
         // JDBC-driver
         Class.forName(driver);
-        con = DriverManager.getConnection(url, username, password);
+        try {
+			con = DriverManager.getConnection(url, username, password);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	    
         Statement stmt = null;
-	    stmt = con.createStatement();
+	    try {
+			stmt = con.createStatement();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	    //now select only the pubchem entries!
-	    ResultSet rs = stmt.executeQuery("SELECT ID FROM RECORD WHERE SUBSTRING(ID,1,1) != 'C' and SUBSTRING(ID,1,1) != 'B' and EXACT_MASS >= '" + lowerBound + "' and EXACT_MASS <= '" + upperBound + "' order by  CAST(ID as UNSIGNED)");
+	    ResultSet rs = null;
+		try {
+			rs = stmt.executeQuery("SELECT ID FROM RECORD WHERE SUBSTRING(ID,1,1) != 'C' and SUBSTRING(ID,1,1) != 'B' and EXACT_MASS >= '" + lowerBound + "' and EXACT_MASS <= '" + upperBound + "' order by  CAST(ID as UNSIGNED)");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
-	    while(rs.next())
-	    {
-	    	candidatesString.add(rs.getString("id"));
-	    }
-        con.close();
+	    try {
+			while(rs.next())
+			{
+				candidatesString.add(rs.getString("id"));
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        try {
+			con.close();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
         
         return candidatesString;
 	}
