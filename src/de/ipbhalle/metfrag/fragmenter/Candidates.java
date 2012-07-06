@@ -357,21 +357,26 @@ public class Candidates {
 		for(int i = 0; i < candidates.size(); i++)
 			molecules[i] = Candidates.getCompound(database, candidates.get(i), null);
 
-			
+		InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
 		for(int index1 = 0; index1 < molecules.length; index1++) {
 			
 			if(uniqueStructures[index1]) {
 				
-				InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
 				InChIGenerator ig = igf.getInChIGenerator(molecules[index1]);
-				String inchi1 = ig.getInchiKey().split("-")[0];
+				String inchikey1 = ig.getInchiKey();
+				if(inchikey1 == null || inchikey1.isEmpty())
+					continue;
+				String inchi1 = inchikey1.split("-")[0];
 				
 				for(int index2 = index1 + 1; index2 < molecules.length; index2++) {
 					
 					if(uniqueStructures[index2]) {
 						
 						ig = igf.getInChIGenerator(molecules[index2]);
-						String inchi2 = ig.getInchiKey().split("-")[0];
+						String inchikey2 = ig.getInchiKey();
+						if(inchikey2 == null || inchikey2.isEmpty())
+							continue;
+						String inchi2 = inchikey2.split("-")[0];
 					
 						if(inchi1.compareTo(inchi2) == 0) {
 							uniqueStructures[index2] = false;
@@ -411,21 +416,27 @@ public class Candidates {
 		for(int i = 0; i < candidates.size(); i++)
 			molecules[i] = Candidates.getCompoundLocally(database, candidates.get(i), databaseUrl, username, password, false);
 
-			
+		InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
 		for(int index1 = 0; index1 < molecules.length; index1++) {
 			
 			if(uniqueStructures[index1]) {
 				
-				InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
 				InChIGenerator ig = igf.getInChIGenerator(molecules[index1]);
-				String inchi1 = ig.getInchiKey().split("-")[0];
+				String inchikey1 = ig.getInchiKey();
+				if(inchikey1 == null || inchikey1.isEmpty())
+					continue;
+				
+				String inchi1 = inchikey1.split("-")[0];
 				
 				for(int index2 = index1 + 1; index2 < molecules.length; index2++) {
 					
 					if(uniqueStructures[index2]) {
 						
 						ig = igf.getInChIGenerator(molecules[index2]);
-						String inchi2 = ig.getInchiKey().split("-")[0];
+						String inchikey2 = ig.getInchiKey();
+						if(inchikey2 == null || inchikey2.isEmpty())
+							continue;
+						String inchi2 = inchikey2.split("-")[0];
 					
 						if(inchi1.compareTo(inchi2) == 0) {
 							uniqueStructures[index2] = false;
