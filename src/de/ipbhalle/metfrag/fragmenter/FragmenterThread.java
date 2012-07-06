@@ -335,7 +335,7 @@ public class FragmenterThread implements Runnable{
 	        try
 			{					
 				//clean up peak list
-				CleanUpPeakList cList = new CleanUpPeakList(peakList);
+				CleanUpPeakList cList = new CleanUpPeakList((Vector<Peak>)peakList.clone());
 				Vector<Peak> cleanedPeakList = cList.getCleanedPeakList(spectrum.getExactMass());
 				
 				
