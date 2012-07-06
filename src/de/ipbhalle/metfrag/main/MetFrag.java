@@ -567,7 +567,8 @@ public class MetFrag {
 	 */
 	public static List<MetFragResult> startConvenienceMetFusion(String database, String databaseID, String molecularFormula, Double exactMass, WrapperSpectrum spectrum, boolean useProxy, 
 			double mzabs, double mzppm, double searchPPM, boolean molecularFormulaRedundancyCheck, boolean breakAromaticRings, int treeDepth,
-			boolean hydrogenTest, boolean neutralLossInEveryLayer, boolean bondEnergyScoring, boolean breakOnlySelectedBonds, int limit, String jdbc, String username, String password) throws Exception
+			boolean hydrogenTest, boolean neutralLossInEveryLayer, boolean bondEnergyScoring, boolean breakOnlySelectedBonds, int limit, 
+			String jdbc, String username, String password, boolean uniqueInchi) throws Exception
 	{
 		PubChemWebService pw = null;
 		results = new FragmenterResult();
@@ -576,10 +577,10 @@ public class MetFrag {
 		if(molecularFormula != null && !molecularFormula.equals("") || (databaseID != null && !databaseID.equals("")))
 		{
 			pw = new PubChemWebService();
-			candidates = Candidates.getOnline(database, databaseID, molecularFormula, exactMass, searchPPM, false, pw);
+			candidates = Candidates.getOnline(database, databaseID, molecularFormula, exactMass, searchPPM, false, pw, uniqueInchi);
 		}
 		else
-			candidates = Candidates.getLocally(database, exactMass, searchPPM, jdbc, username, password);
+			candidates = Candidates.getLocally(database, exactMass, searchPPM, jdbc, username, password, uniqueInchi);
 
 
 		System.out.println("Hits in database: " + candidates.size());
