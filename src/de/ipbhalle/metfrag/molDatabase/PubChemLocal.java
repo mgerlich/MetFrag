@@ -37,6 +37,11 @@ import java.util.Map;
 import java.util.Vector;
 import java.util.zip.GZIPInputStream;
 
+import net.sf.jniinchi.INCHI_KEY;
+import net.sf.jniinchi.JniInchiException;
+import net.sf.jniinchi.JniInchiOutputKey;
+import net.sf.jniinchi.JniInchiWrapper;
+
 import org.openscience.cdk.DefaultChemObjectBuilder;
 import org.openscience.cdk.exception.InvalidSmilesException;
 import org.openscience.cdk.interfaces.IAtomContainer;
@@ -116,6 +121,91 @@ public class PubChemLocal {
 			while(rs.next())
 			{
 				candidatesString.add(rs.getString("id"));
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        try {
+			con.close();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
+        return candidatesString;
+	}
+
+	/**
+	 * Gets the hits (only the pubchem id's) from a local database with a MassBank schema
+	 * and with specified lower and upper bound.
+	 * 
+	 * @param limit the limit
+	 * @param lowerBound the lower bound
+	 * @param upperBound the higher bound
+	 * 
+	 * @return the hits
+	 * 
+	 * @throws SQLException the SQL exception
+	 * @throws ClassNotFoundException the class not found exception
+	 * @throws JniInchiException 
+	 */
+	public List<String> getHits(double lowerBound, double upperBound, boolean uniqueInchi) throws ClassNotFoundException, JniInchiException
+	{
+		List<String> candidatesString = new ArrayList<String>();    
+		System.out.println("Lower bound: " + lowerBound + " Upper bound: " + upperBound);
+		//now retrieve the search results
+        String driver = "com.mysql.jdbc.Driver"; 
+        Connection con = null; 
+		Class.forName(driver); 
+		try {
+			DriverManager.registerDriver (new com.mysql.jdbc.Driver());
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+        // JDBC-driver
+        Class.forName(driver);
+        try {
+			con = DriverManager.getConnection(url, username, password);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	    
+        Statement stmt = null;
+	    try {
+			stmt = con.createStatement();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	    //now select only the pubchem entries!
+	    ResultSet rs = null;
+		try {
+			rs = stmt.executeQuery("SELECT IUPAC, ID FROM RECORD WHERE SUBSTRING(ID,1,1) != 'C' and SUBSTRING(ID,1,1) != 'B' and EXACT_MASS >= '" + lowerBound + "' and EXACT_MASS <= '" + upperBound + "' order by  CAST(ID as UNSIGNED)");
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	    try {
+	    	Vector<String> cids_inchi_keys = new Vector<String>();
+			while(rs.next())
+			{
+				boolean insert = true;
+				if(uniqueInchi) {
+					JniInchiOutputKey jiok = JniInchiWrapper.getInchiKey(rs.getString("iupac"));
+					if(jiok.getReturnStatus() == INCHI_KEY.OK) {
+						String key1 = jiok.getKey().split("-")[0];
+						if(!cids_inchi_keys.contains(key1))
+							cids_inchi_keys.add(key1);
+						else 
+							insert = false;
+					}
+				}
+				if(insert) 
+					candidatesString.add(rs.getString("id"));
 			}
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
