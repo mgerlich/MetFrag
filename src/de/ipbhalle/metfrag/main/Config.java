@@ -62,6 +62,7 @@ public class Config {
     private boolean isOnlyBreakSelectedBonds = false;
     private int maximumNeutralLossCombination = 3;
     private String chemspiderToken = "";
+    private boolean uniqueInchi = false;
 	
 	/**
 	 * Instantiates a new config.
@@ -168,6 +169,11 @@ public class Config {
 		if(properties.getProperty("Hierarchical") != null && properties.getProperty("Hierarchical").equals("true"))
 			setHierarchical(true);
 		
+		//set filtering of stereoisomers based on inchi key comparison
+		setUniqueInchi(false);
+		if(properties.getProperty("uniqueInchi") != null && properties.getProperty("uniqueInchi").equals("true"))
+			setUniqueInchi(true);
+			
 		setShowDiagrams(false); //show graphical output?
 		if(properties.getProperty("showDiagrams") != null && properties.getProperty("showDiagrams").equals("true"))
 			setShowDiagrams(true);
@@ -378,6 +384,24 @@ public class Config {
 	 */
 	public boolean isShowDiagrams() {
 		return showDiagrams;
+	}
+	
+	/**
+	 * Sets the show diagrams.
+	 * 
+	 * @param showDiagrams the new show diagrams
+	 */
+	public void setUniqueInchi(boolean uniqueInchi) {
+		this.uniqueInchi = uniqueInchi;
+	}
+
+	/**
+	 * Checks if is show diagrams.
+	 * 
+	 * @return true, if is show diagrams
+	 */
+	public boolean isUniqueInchi() {
+		return uniqueInchi;
 	}
 
 	/**
