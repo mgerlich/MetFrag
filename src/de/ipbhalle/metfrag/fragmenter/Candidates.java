@@ -29,10 +29,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
+import net.sf.jniinchi.JniInchiException;
+
 import org.openscience.cdk.ChemFile;
 import org.openscience.cdk.ChemObject;
 import org.openscience.cdk.exception.CDKException;
 import org.openscience.cdk.exception.InvalidSmilesException;
+import org.openscience.cdk.inchi.InChIGenerator;
+import org.openscience.cdk.inchi.InChIGeneratorFactory;
 import org.openscience.cdk.interfaces.IAtomContainer;
 import org.openscience.cdk.io.MDLReader;
 import org.openscience.cdk.tools.manipulator.ChemFileManipulator;
@@ -98,6 +102,60 @@ public class Candidates {
 		return candidates;
 	}
 	
+	/**
+	 * Gets the candidates online using the webservice interface from the databases
+	 * 
+	 * @param database the database
+	 * @param databaseID the database id
+	 * @param molecularFormula the molecular formula
+	 * @param exactMass the exact mass
+	 * @param searchPPM the search ppm
+	 * @param useIPBProxy the use ipb proxy
+	 * 
+	 * @return the online
+	 * 
+	 * @throws Exception the exception
+	 */
+	public static Vector<String> getOnline(String database, String databaseID, String molecularFormula, double exactMass, double searchPPM, boolean useIPBProxy, PubChemWebService pubchem, boolean uniqueInchi) throws Exception
+	{
+		Vector<String> candidates = new Vector<String>();
+		
+		if(database.equals("kegg") && databaseID.equals(""))
+		{
+			//if(molecularFormula != "")
+			if(!molecularFormula.isEmpty())
+				candidates = KeggWebservice.KEGGbySumFormula(molecularFormula);
+			else
+				candidates = KeggWebservice.KEGGbyMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
+			if(uniqueInchi) 
+				candidates = removeDuplicatesByInchi(candidates, database);
+		}
+		else if(database.equals("chemspider") && databaseID.equals(""))
+		{
+			//if(molecularFormula != "")
+			if(!molecularFormula.isEmpty())
+				candidates = ChemSpider.getChemspiderBySumFormula(molecularFormula);
+			else
+				candidates = ChemSpider.getChemspiderByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
+			if(uniqueInchi) 
+				candidates = removeDuplicatesByInchi(candidates, database);
+		}
+		else if(database.equals("pubchem") && databaseID.equals(""))
+		{
+			//if(molecularFormula != "")
+			if(!molecularFormula.isEmpty())
+				candidates = pubchem.getHitsbySumFormula(molecularFormula, useIPBProxy, uniqueInchi);
+			else
+				candidates = pubchem.getHitsByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE, useIPBProxy, uniqueInchi);
+		}
+		else if (!databaseID.equals(""))
+		{	
+			candidates = new Vector<String>();
+			candidates.add(databaseID);
+		}
+		
+		return candidates;
+	}
 	
 	/**
 	 * Gets the candidates locally using a local database.
@@ -122,7 +180,7 @@ public class Candidates {
 		if(database.equals("kegg"))
 		{
 			KEGGLocal kl = new KEGGLocal(databaseUrl, username, password);
-			double deviation =PPMTool.getPPMDeviation(exactMass, searchPPM);
+			double deviation = PPMTool.getPPMDeviation(exactMass, searchPPM);
 			candidates = kl.getHits(Integer.MAX_VALUE, (exactMass - deviation) , (exactMass + deviation));				
 		}
 		else if(database.equals("chemspider"))
@@ -134,6 +192,53 @@ public class Candidates {
 			PubChemLocal pl = new PubChemLocal(databaseUrl, username, password);
 			double deviation =PPMTool.getPPMDeviation(exactMass, searchPPM);
 			candidates = pl.getHits((exactMass - deviation), (exactMass + deviation));
+		}
+		
+		return candidates;
+	}
+
+
+	/**
+	 * Gets the candidates locally using a local database.
+	 * 
+	 * @param database the database
+	 * @param exactMass the exact mass
+	 * @param searchPPM the search ppm
+	 * @param databaseUrl the database url
+	 * @param username the username
+	 * @param password the password
+	 * 
+	 * @return the locally
+	 * 
+	 * @throws SQLException the SQL exception
+	 * @throws ClassNotFoundException the class not found exception
+	 * @throws RemoteException the remote exception
+	 * @throws CDKException 
+	 * @throws JniInchiException 
+	 */
+	public static List<String> getLocally(String database, double exactMass, double searchPPM, String databaseUrl, String username, String password, boolean uniqueInchi) throws SQLException, ClassNotFoundException, RemoteException, CDKException, JniInchiException
+	{
+		List<String> candidates = new ArrayList<String>();
+		
+		if(database.equals("kegg"))
+		{
+			KEGGLocal kl = new KEGGLocal(databaseUrl, username, password);
+			double deviation = PPMTool.getPPMDeviation(exactMass, searchPPM);
+			candidates = kl.getHits(Integer.MAX_VALUE, (exactMass - deviation) , (exactMass + deviation));		
+			if(uniqueInchi) 
+				candidates = removeDuplicatesByInchiLocally(candidates, database, databaseUrl, username, password);		
+		}
+		else if(database.equals("chemspider"))
+		{
+			candidates = ChemSpider.getChemspiderByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
+			if(uniqueInchi) 
+				candidates = removeDuplicatesByInchiLocally(candidates, database, databaseUrl, username, password);	
+		}
+		else if(database.equals("pubchem"))
+		{
+			PubChemLocal pl = new PubChemLocal(databaseUrl, username, password);
+			double deviation =PPMTool.getPPMDeviation(exactMass, searchPPM);
+			candidates = pl.getHits((exactMass - deviation), (exactMass + deviation), uniqueInchi);
 		}
 		
 		return candidates;
@@ -233,5 +338,110 @@ public class Candidates {
 		
 		return molecule;
 	}
+	
+	/**
+	 * removes structures whose first inchi key strings are equal
+	 * 
+	 * @return
+	 * @throws CDKException 
+	 * @throws RemoteException 
+	 */
+	public static Vector<String> removeDuplicatesByInchi(Vector<String> candidates, String database) throws RemoteException, CDKException {
+		
+		boolean[] uniqueStructures = new boolean[candidates.size()];
+		for(int i = 0; i < uniqueStructures.length; i++) uniqueStructures[i] = true;
+		
+		//for inchi calculation the IAtomContainers are needed
+		IAtomContainer[] molecules = new IAtomContainer[candidates.size()];
+		
+		for(int i = 0; i < candidates.size(); i++)
+			molecules[i] = Candidates.getCompound(database, candidates.get(i), null);
 
+			
+		for(int index1 = 0; index1 < molecules.length; index1++) {
+			
+			if(uniqueStructures[index1]) {
+				
+				InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
+				InChIGenerator ig = igf.getInChIGenerator(molecules[index1]);
+				String inchi1 = ig.getInchiKey().split("-")[0];
+				
+				for(int index2 = index1 + 1; index2 < molecules.length; index2++) {
+					
+					if(uniqueStructures[index2]) {
+						
+						ig = igf.getInChIGenerator(molecules[index2]);
+						String inchi2 = ig.getInchiKey().split("-")[0];
+					
+						if(inchi1.compareTo(inchi2) == 0) {
+							uniqueStructures[index2] = false;
+						}
+					
+					
+					}
+				}
+			}
+		}
+		
+		Vector<String> cleanedCandidates = new Vector<String>();
+		for(int i = 0; i < uniqueStructures.length; i++) 
+			if(uniqueStructures[i]) cleanedCandidates.add(candidates.get(i));
+		
+		return cleanedCandidates;
+	
+	}
+	
+	/**
+	 * removes structures whose first inchi key strings are equal
+	 * 
+	 * @return
+	 * @throws CDKException 
+	 * @throws RemoteException 
+	 * @throws ClassNotFoundException 
+	 * @throws SQLException 
+	 */
+	public static Vector<String> removeDuplicatesByInchiLocally(List<String> candidates, String database, String databaseUrl, String username, String password) throws RemoteException, CDKException, SQLException, ClassNotFoundException {
+		
+		boolean[] uniqueStructures = new boolean[candidates.size()];
+		for(int i = 0; i < uniqueStructures.length; i++) uniqueStructures[i] = true;
+		
+		//for inchi calculation the IAtomContainers are needed
+		IAtomContainer[] molecules = new IAtomContainer[candidates.size()];
+		
+		for(int i = 0; i < candidates.size(); i++)
+			molecules[i] = Candidates.getCompoundLocally(database, candidates.get(i), databaseUrl, username, password, false);
+
+			
+		for(int index1 = 0; index1 < molecules.length; index1++) {
+			
+			if(uniqueStructures[index1]) {
+				
+				InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
+				InChIGenerator ig = igf.getInChIGenerator(molecules[index1]);
+				String inchi1 = ig.getInchiKey().split("-")[0];
+				
+				for(int index2 = index1 + 1; index2 < molecules.length; index2++) {
+					
+					if(uniqueStructures[index2]) {
+						
+						ig = igf.getInChIGenerator(molecules[index2]);
+						String inchi2 = ig.getInchiKey().split("-")[0];
+					
+						if(inchi1.compareTo(inchi2) == 0) {
+							uniqueStructures[index2] = false;
+						}
+					
+					
+					}
+				}
+			}
+		}
+		
+		Vector<String> cleanedCandidates = new Vector<String>();
+		for(int i = 0; i < uniqueStructures.length; i++) 
+			if(uniqueStructures[i]) cleanedCandidates.add(candidates.get(i));
+		
+		return cleanedCandidates;
+	
+	}
 }
