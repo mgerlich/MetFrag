@@ -472,7 +472,8 @@ public class MetFrag {
 	 */
 	public static List<MetFragResult> startConvenienceLocal(String database, String databaseID, String molecularFormula, Double exactMass, WrapperSpectrum spectrum, boolean useProxy, 
 			double mzabs, double mzppm, double searchPPM, boolean molecularFormulaRedundancyCheck, boolean breakAromaticRings, int treeDepth,
-			boolean hydrogenTest, boolean neutralLossInEveryLayer, boolean bondEnergyScoring, boolean breakOnlySelectedBonds, int limit, String jdbc, String username, String password, int maxNeutralLossCombination) throws Exception
+			boolean hydrogenTest, boolean neutralLossInEveryLayer, boolean bondEnergyScoring, boolean breakOnlySelectedBonds, int limit, 
+			String jdbc, String username, String password, int maxNeutralLossCombination, boolean onlyCHNOPS) throws Exception
 	{
 		
 		PubChemWebService pw = null;
@@ -500,7 +501,7 @@ public class MetFrag {
 			//TODO fix the candidate retrieval!!!
 			threadExecutor.execute(new FragmenterThread(candidates.get(c).getAccession(), database, pw, spectrum, mzabs, mzppm, 
 					molecularFormulaRedundancyCheck, breakAromaticRings, treeDepth, false, hydrogenTest, neutralLossInEveryLayer, 
-					bondEnergyScoring, breakOnlySelectedBonds, null, true, jdbc, username, password));		
+					bondEnergyScoring, breakOnlySelectedBonds, null, true, jdbc, username, password, onlyCHNOPS));		
 		}
 		
 		threadExecutor.shutdown();
@@ -568,13 +569,20 @@ public class MetFrag {
 	public static List<MetFragResult> startConvenienceMetFusion(String database, String databaseID, String molecularFormula, Double exactMass, WrapperSpectrum spectrum, boolean useProxy, 
 			double mzabs, double mzppm, double searchPPM, boolean molecularFormulaRedundancyCheck, boolean breakAromaticRings, int treeDepth,
 			boolean hydrogenTest, boolean neutralLossInEveryLayer, boolean bondEnergyScoring, boolean breakOnlySelectedBonds, int limit, 
-			String jdbc, String username, String password, boolean uniqueInchi) throws Exception
+			String jdbc, String username, String password, boolean uniqueInchi, boolean onlyCHNOPS, boolean generateFragmentsInMemory) throws Exception
 	{
 		PubChemWebService pw = null;
 		results = new FragmenterResult();
 		List<String> candidates = null;
 		// disabled for online-only mode
-		if(molecularFormula != null && !molecularFormula.equals("") || (databaseID != null && !databaseID.equals("")))
+		if(databaseID != null && !databaseID.equals("")) {
+			candidates = new Vector<String>();
+			String[] idList = databaseID.split(",");
+			for (int i = 0; i < idList.length; i++) {
+				candidates.add(idList[i].trim());
+			}
+		}
+		else if(molecularFormula != null && !molecularFormula.equals("") || (databaseID != null && !databaseID.equals("")))
 		{
 			pw = new PubChemWebService();
 			candidates = Candidates.getOnline(database, databaseID, molecularFormula, exactMass, searchPPM, false, pw, uniqueInchi);
@@ -600,7 +608,7 @@ public class MetFrag {
 			
 			threadExecutor.execute(new FragmenterThread(candidates.get(c), database, pw, spectrum, mzabs, mzppm, 
 					molecularFormulaRedundancyCheck, breakAromaticRings, treeDepth, false, hydrogenTest, neutralLossInEveryLayer, 
-					bondEnergyScoring, breakOnlySelectedBonds, null, true, jdbc, username, password));		
+					bondEnergyScoring, breakOnlySelectedBonds, null, generateFragmentsInMemory, jdbc, username, password, onlyCHNOPS));		
 		}
 		
 		threadExecutor.shutdown();
@@ -1175,6 +1183,29 @@ public class MetFrag {
 	 * @param args the arguments
 	 */
 	public static void main(String[] args) {
+		WrapperSpectrum spectrum = new WrapperSpectrum("/home/mgerlich/Datasets/allSpectra/PR100337.txt");
+		try {
+			List<MetFragResult> result = MetFrag.startConvenienceMetFusion("pubchem", "", "", 149.10519, spectrum, false, 0.01, 10, 10, true, true, 2, 
+					true, false, true, false, 5000, "jdbc:mysql://rdbms/MetFrag", "swolf", "populusromanus", true, true, false);
+			System.out.println("result# -> " + result.size());
+			
+			int counterBad = 0;
+			
+			for (int i = 0; i < result.size(); i++) {
+				MetFragResult r = result.get(i);
+				System.out.print(r.getCandidateID());
+				System.out.println("\tstructure? " + r.getStructure() != null);
+				
+				if(r.getStructure() == null)
+					counterBad++;
+			}
+			System.out.println("#bad -> " + counterBad);
+			
+		} catch (Exception e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+		System.exit(0);
 		
 		String currentFile = "";
 		String date = "";
