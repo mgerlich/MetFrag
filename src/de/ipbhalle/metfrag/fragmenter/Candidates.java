@@ -29,12 +29,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
 
+import net.sf.jniinchi.INCHI_RET;
 import net.sf.jniinchi.JniInchiException;
 
 import org.openscience.cdk.ChemFile;
 import org.openscience.cdk.ChemObject;
 import org.openscience.cdk.exception.CDKException;
-import org.openscience.cdk.exception.InvalidSmilesException;
 import org.openscience.cdk.inchi.InChIGenerator;
 import org.openscience.cdk.inchi.InChIGeneratorFactory;
 import org.openscience.cdk.interfaces.IAtomContainer;
@@ -97,6 +97,10 @@ public class Candidates {
 		{	
 			candidates = new Vector<String>();
 			candidates.add(databaseID);
+//			String[] idList = databaseID.split(",");
+//			for (int i = 0; i < idList.length; i++) {
+//				candidates.add(idList[i].trim());
+//			}
 		}
 		
 		return candidates;
@@ -363,6 +367,11 @@ public class Candidates {
 			if(uniqueStructures[index1]) {
 				
 				InChIGenerator ig = igf.getInChIGenerator(molecules[index1]);
+				if(ig.getReturnStatus() == INCHI_RET.ERROR) {
+					System.err.println("Error creating InChI for [" + candidates.get(index1) + "]");
+					continue;
+				}
+				
 				String inchikey1 = ig.getInchiKey();
 				if(inchikey1 == null || inchikey1.isEmpty())
 					continue;
@@ -422,6 +431,11 @@ public class Candidates {
 			if(uniqueStructures[index1]) {
 				
 				InChIGenerator ig = igf.getInChIGenerator(molecules[index1]);
+				if(ig.getReturnStatus() == INCHI_RET.ERROR) {
+					System.err.println("Error creating InChI for [" + candidates.get(index1) + "]");
+					continue;
+				}
+
 				String inchikey1 = ig.getInchiKey();
 				if(inchikey1 == null || inchikey1.isEmpty())
 					continue;
