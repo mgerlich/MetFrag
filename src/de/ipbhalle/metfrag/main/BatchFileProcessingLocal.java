@@ -125,7 +125,7 @@ public class BatchFileProcessingLocal {
 		    exactMass = exactMass - ((double)mode * Constants.PROTON_MASS);
 		    
 		    //Fragment the structures!
-		    List<MetFragResult> results = MetFrag.startConvenienceLocal(database, "", "", exactMass, new WrapperSpectrum(peaks, mode, exactMass, isPositive), false, mzabs, mzppm, searchPPM, true, true, treeDepth, true, false, true, false, Integer.MAX_VALUE, jdbc, username, password, 3);
+		    List<MetFragResult> results = MetFrag.startConvenienceLocal(database, "", "", exactMass, new WrapperSpectrum(peaks, mode, exactMass, isPositive), false, mzabs, mzppm, searchPPM, true, true, treeDepth, true, false, true, false, Integer.MAX_VALUE, jdbc, username, password, 3, true);
 		    MoleculeSet setOfMolecules = new MoleculeSet();
 			for (MetFragResult result : results) {
 				//get corresponding structure
