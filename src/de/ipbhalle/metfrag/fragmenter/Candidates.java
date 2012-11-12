@@ -120,7 +120,8 @@ public class Candidates {
 	 * 
 	 * @throws Exception the exception
 	 */
-	public static Vector<String> getOnline(String database, String databaseID, String molecularFormula, double exactMass, double searchPPM, boolean useIPBProxy, PubChemWebService pubchem, boolean uniqueInchi) throws Exception
+	public static Vector<String> getOnline(String database, String databaseID, String molecularFormula, double exactMass, double searchPPM, 
+			boolean useIPBProxy, PubChemWebService pubchem, boolean uniqueInchi, String chemspiderToken) throws Exception
 	{
 		Vector<String> candidates = new Vector<String>();
 		
@@ -132,17 +133,23 @@ public class Candidates {
 			else
 				candidates = KeggWebservice.KEGGbyMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
 			if(uniqueInchi) 
-				candidates = removeDuplicatesByInchi(candidates, database);
+				candidates = removeDuplicatesByInchi(candidates, database, chemspiderToken);
 		}
 		else if(database.equals("chemspider") && databaseID.equals(""))
 		{
 			//if(molecularFormula != "")
-			if(!molecularFormula.isEmpty())
-				candidates = ChemSpider.getChemspiderBySumFormula(molecularFormula);
-			else
-				candidates = ChemSpider.getChemspiderByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
-			if(uniqueInchi) 
-				candidates = removeDuplicatesByInchi(candidates, database);
+			if(!uniqueInchi) {
+				if(!molecularFormula.isEmpty())
+					candidates = ChemSpider.getChemspiderBySumFormula(molecularFormula);
+				else
+					candidates = ChemSpider.getChemspiderByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
+			}
+			else {
+				if(!molecularFormula.isEmpty())
+					candidates = ChemSpider.getChemspiderBySumFormulaUniqueInchi(molecularFormula, chemspiderToken);
+				else
+					candidates = ChemSpider.getChemspiderByMassUniqueInchi(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), chemspiderToken);
+			}
 		}
 		else if(database.equals("pubchem") && databaseID.equals(""))
 		{
@@ -220,7 +227,8 @@ public class Candidates {
 	 * @throws CDKException 
 	 * @throws JniInchiException 
 	 */
-	public static List<String> getLocally(String database, double exactMass, double searchPPM, String databaseUrl, String username, String password, boolean uniqueInchi) throws SQLException, ClassNotFoundException, RemoteException, CDKException, JniInchiException
+	public static List<String> getLocally(String database, double exactMass, double searchPPM, String databaseUrl, String username, 
+			String password, boolean uniqueInchi, String chemspiderToken) throws SQLException, ClassNotFoundException, RemoteException, CDKException, JniInchiException
 	{
 		List<String> candidates = new ArrayList<String>();
 		
@@ -230,13 +238,16 @@ public class Candidates {
 			double deviation = PPMTool.getPPMDeviation(exactMass, searchPPM);
 			candidates = kl.getHits(Integer.MAX_VALUE, (exactMass - deviation) , (exactMass + deviation));		
 			if(uniqueInchi) 
-				candidates = removeDuplicatesByInchiLocally(candidates, database, databaseUrl, username, password);		
+				candidates = removeDuplicatesByInchiLocally(candidates, database, databaseUrl, username, password, chemspiderToken);		
 		}
 		else if(database.equals("chemspider"))
 		{
-			candidates = ChemSpider.getChemspiderByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
-			if(uniqueInchi) 
-				candidates = removeDuplicatesByInchiLocally(candidates, database, databaseUrl, username, password);	
+			if(!uniqueInchi) {
+				candidates = ChemSpider.getChemspiderByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
+			}
+			else {
+				candidates = ChemSpider.getChemspiderByMassUniqueInchi(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), chemspiderToken);
+			}
 		}
 		else if(database.equals("pubchem"))
 		{
@@ -260,7 +271,8 @@ public class Candidates {
 	 * @throws RemoteException 
 	 * @throws CDKException 
 	 */
-	public static IAtomContainer getCompound(String database, String candidate, PubChemWebService pw) throws RemoteException, CDKException
+	public static IAtomContainer getCompound(String database, String candidate, 
+			PubChemWebService pw, String chemspiderToken) throws RemoteException, CDKException
 	{
 		IAtomContainer molecule = null;
 		
@@ -281,7 +293,7 @@ public class Candidates {
 		}
 		else if(database.equals("chemspider"))
 		{
-			String candidateMol = ChemSpider.getMolByID(candidate);
+			String candidateMol = ChemSpider.getMolByID(candidate, chemspiderToken);
 			
 			MDLReader reader;
 			List<IAtomContainer> containersList;
@@ -321,7 +333,8 @@ public class Candidates {
 	 * @throws CDKException the CDK exception
 	 * @throws RemoteException the remote exception
 	 */
-	public static IAtomContainer getCompoundLocally(String database, String candidate, String jdbc, String username, String password, boolean getAll) throws SQLException, ClassNotFoundException, RemoteException, CDKException
+	public static IAtomContainer getCompoundLocally(String database, String candidate, String jdbc, String username, String password, 
+			boolean getAll, String chemspiderToken) throws SQLException, ClassNotFoundException, RemoteException, CDKException
 	{
 		IAtomContainer molecule = null;
 
@@ -332,7 +345,7 @@ public class Candidates {
 		}
 		else if(database.equals("chemspider"))
 		{
-			molecule = ChemSpider.getMol(candidate, true);
+			molecule = ChemSpider.getMol(candidate, chemspiderToken, true);
 		}
 		else if(database.equals("pubchem"))
 		{
@@ -350,7 +363,8 @@ public class Candidates {
 	 * @throws CDKException 
 	 * @throws RemoteException 
 	 */
-	public static Vector<String> removeDuplicatesByInchi(Vector<String> candidates, String database) throws RemoteException, CDKException {
+	public static Vector<String> removeDuplicatesByInchi(Vector<String> candidates, String database, 
+			String chemspiderToken) throws RemoteException, CDKException {
 		
 		boolean[] uniqueStructures = new boolean[candidates.size()];
 		for(int i = 0; i < uniqueStructures.length; i++) uniqueStructures[i] = true;
@@ -359,7 +373,7 @@ public class Candidates {
 		IAtomContainer[] molecules = new IAtomContainer[candidates.size()];
 		
 		for(int i = 0; i < candidates.size(); i++)
-			molecules[i] = Candidates.getCompound(database, candidates.get(i), null);
+			molecules[i] = Candidates.getCompound(database, candidates.get(i), null, chemspiderToken);
 
 		InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
 		for(int index1 = 0; index1 < molecules.length; index1++) {
@@ -414,7 +428,8 @@ public class Candidates {
 	 * @throws ClassNotFoundException 
 	 * @throws SQLException 
 	 */
-	public static Vector<String> removeDuplicatesByInchiLocally(List<String> candidates, String database, String databaseUrl, String username, String password) throws RemoteException, CDKException, SQLException, ClassNotFoundException {
+	public static Vector<String> removeDuplicatesByInchiLocally(List<String> candidates, String database, String databaseUrl, 
+			String username, String password, String chemspiderToken) throws RemoteException, CDKException, SQLException, ClassNotFoundException {
 		
 		boolean[] uniqueStructures = new boolean[candidates.size()];
 		for(int i = 0; i < uniqueStructures.length; i++) uniqueStructures[i] = true;
@@ -423,7 +438,7 @@ public class Candidates {
 		IAtomContainer[] molecules = new IAtomContainer[candidates.size()];
 		
 		for(int i = 0; i < candidates.size(); i++)
-			molecules[i] = Candidates.getCompoundLocally(database, candidates.get(i), databaseUrl, username, password, false);
+			molecules[i] = Candidates.getCompoundLocally(database, candidates.get(i), databaseUrl, username, password, false, chemspiderToken);
 
 		InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
 		for(int index1 = 0; index1 < molecules.length; index1++) {

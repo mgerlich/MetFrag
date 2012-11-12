@@ -39,9 +39,6 @@ import de.ipbhalle.metfrag.tools.MolecularFormulaTools;
 
 public class ChemSpider {
 	
-	private static String token = "eeca1d0f-4c03-4d81-aa96-328cdccf171a"; 
-		//"a1004d0f-9d37-47e0-acdd-35e58e34f603";
-	
 	/**
 	 * Gets Chemspider compound ID's by mass.
 	 * 
@@ -59,6 +56,75 @@ public class ChemSpider {
 		String[] resultIDs = chemSpiderProxy.searchByMass2(mass, error);
 		for (int i = 0; i < resultIDs.length; i++) {
 			result.add(resultIDs[i]);
+		}
+		return result;
+	}
+	
+	/**
+	 * filter ids by inchi key one
+	 * 
+	 * @param mass
+	 * @param error
+	 * @param verbose
+	 * @return
+	 * @throws RemoteException
+	 */
+	public static Vector<String> getChemspiderByMassUniqueInchi(Double mass, Double error, String token) throws RemoteException
+	{
+		Vector<String> result = new Vector<String>();
+		MassSpecAPISoapProxy chemSpiderProxy = new MassSpecAPISoapProxy();
+		String[] resultIDs = chemSpiderProxy.searchByMass2(mass, error);
+		Vector<String> inchiKeys = new Vector<String>();
+		int[] CSIDs = new int[resultIDs.length];
+		
+		// turn String IDs into int IDs
+		for (int i = 0; i < resultIDs.length; i++) {
+			CSIDs[i] = Integer.parseInt(resultIDs[i]);
+		}
+		
+		// query ChemSpider with array information
+		ExtendedCompoundInfo[] info = chemSpiderProxy.getExtendedCompoundInfoArray(CSIDs, token);
+		// parse and filter returned information
+		for (int i = 0; i < info.length; i++) {
+			String inchiKey1 = info[i].getInChIKey().split("-")[0];
+			if(!inchiKeys.contains(inchiKey1)) {
+				result.add(String.valueOf(info[i].getCSID()));
+				inchiKeys.add(inchiKey1);
+			}
+		}
+		return result;
+	}
+	
+	/**
+	 * filter ids by inch key one
+	 * 
+	 * @param sumFormula
+	 * @param token
+	 * @return
+	 * @throws RemoteException
+	 */
+	public static Vector<String> getChemspiderBySumFormulaUniqueInchi(String sumFormula, String token) throws RemoteException
+	{
+		Vector<String> result = new Vector<String>();
+		MassSpecAPISoapProxy chemSpiderProxy = new MassSpecAPISoapProxy();
+		String[] resultIDs = chemSpiderProxy.searchByFormula2(sumFormula);
+		Vector<String> inchiKeys = new Vector<String>();
+		int[] CSIDs = new int[resultIDs.length];
+		
+		// turn String IDs into int IDs
+		for (int i = 0; i < resultIDs.length; i++) {
+			CSIDs[i] = Integer.parseInt(resultIDs[i]);
+		}
+		
+		// query ChemSpider with array information
+		ExtendedCompoundInfo[] info = chemSpiderProxy.getExtendedCompoundInfoArray(CSIDs, token);
+		// parse and filter returned information
+		for (int i = 0; i < info.length; i++) {
+			String inchiKey1 = info[i].getInChIKey().split("-")[0];
+			if(!inchiKeys.contains(inchiKey1)) {
+				result.add(String.valueOf(info[i].getCSID()));
+				inchiKeys.add(inchiKey1);
+			}
 		}
 		return result;
 	}
@@ -93,7 +159,7 @@ public class ChemSpider {
 	 * 
 	 * @throws RemoteException the remote exception
 	 */
-	public static String getMolByID(String ID) throws RemoteException
+	public static String getMolByID(String ID, String token) throws RemoteException
 	{
 		MassSpecAPISoapProxy chemSpiderProxy = new MassSpecAPISoapProxy();
 		String mol = chemSpiderProxy.getRecordMol(ID, false, token);
@@ -110,7 +176,7 @@ public class ChemSpider {
 	 * @throws RemoteException the remote exception
 	 * @throws CDKException 
 	 */
-	public static IAtomContainer getMol(String ID, boolean getAll) throws RemoteException, CDKException
+	public static IAtomContainer getMol(String ID, String token, boolean getAll) throws RemoteException, CDKException
 	{
 		MassSpecAPISoapProxy chemSpiderProxy = new MassSpecAPISoapProxy();
 		String mol = chemSpiderProxy.getRecordMol(ID, false, token);
@@ -140,7 +206,7 @@ public class ChemSpider {
 	 * 
 	 * @throws RemoteException the remote exception
 	 */
-	public static ExtendedCompoundInfo getExtendedCpdInfo(int key) throws RemoteException
+	public static ExtendedCompoundInfo getExtendedCpdInfo(int key, String token) throws RemoteException
 	{
 		MassSpecAPISoapProxy chemSpiderProxy = new MassSpecAPISoapProxy();
 		ExtendedCompoundInfo cpdInfo = chemSpiderProxy.getExtendedCompoundInfo(key, token);

@@ -77,6 +77,7 @@ public class FragmenterThread implements Runnable{
 	private IAtomContainer mol;
 	private boolean useMetChem = false;
 	private boolean onlyCHNOPS = true;
+	private String chemspiderToken = "";
 	
 	/**
 	 * Instantiates a new pubChem search thread. ONLINE
@@ -172,7 +173,7 @@ public class FragmenterThread implements Runnable{
 			WrapperSpectrum spectrum, double mzabs, double mzppm, boolean sumFormulaRedundancyCheck,
 			boolean breakAromaticRings, int treeDepth, boolean showDiagrams, boolean hydrogenTest,
 			boolean neutralLossAdd, boolean bondEnergyScoring, boolean isOnlyBreakSelectedBonds, Config c,
-			boolean generateFragmentsInMemory, String jdbc, String username, String password, boolean onlyCHNOPS)
+			boolean generateFragmentsInMemory, String jdbc, String username, String password, boolean onlyCHNOPS, String chemspiderToken)
 	{
 		this.candidate = candidate;
 		this.pw = pw;
@@ -192,6 +193,7 @@ public class FragmenterThread implements Runnable{
 		this.password = password;
 		this.jdbc = jdbc;
 		this.onlyCHNOPS = onlyCHNOPS;
+		this.chemspiderToken = chemspiderToken;
 	}
 	
 	/**
@@ -254,12 +256,12 @@ public class FragmenterThread implements Runnable{
 			}
 			//retrieve the candidate from the database
 			else if(pw == null && c == null)
-				molecule = Candidates.getCompoundLocally(this.database, candidate, jdbc, username, password, !onlyCHNOPS);
+				molecule = Candidates.getCompoundLocally(this.database, candidate, jdbc, username, password, !onlyCHNOPS, chemspiderToken);
 			else if(pw == null)
-				molecule = Candidates.getCompoundLocally(this.database, candidate, c.getJdbc(), c.getUsername(), c.getPassword(), !onlyCHNOPS);
+				molecule = Candidates.getCompoundLocally(this.database, candidate, c.getJdbc(), c.getUsername(), c.getPassword(), !onlyCHNOPS, chemspiderToken);
 			else
 			{
-				molecule = Candidates.getCompound(database, candidate, pw);
+				molecule = Candidates.getCompound(database, candidate, pw, chemspiderToken);
 				if(molecule == null && database.equals("pubchem"))
 					molecule = pw.getSingleMol(candidate, false);
 			}
@@ -514,6 +516,16 @@ public class FragmenterThread implements Runnable{
 
 	public boolean isOnlyCHNOPS() {
 		return onlyCHNOPS;
+	}
+
+
+	public void setChemspiderToken(String chemspiderToken) {
+		this.chemspiderToken = chemspiderToken;
+	}
+
+
+	public String getChemspiderToken() {
+		return chemspiderToken;
 	}
 
 }
