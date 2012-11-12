@@ -473,7 +473,7 @@ public class MetFrag {
 	public static List<MetFragResult> startConvenienceLocal(String database, String databaseID, String molecularFormula, Double exactMass, WrapperSpectrum spectrum, boolean useProxy, 
 			double mzabs, double mzppm, double searchPPM, boolean molecularFormulaRedundancyCheck, boolean breakAromaticRings, int treeDepth,
 			boolean hydrogenTest, boolean neutralLossInEveryLayer, boolean bondEnergyScoring, boolean breakOnlySelectedBonds, int limit, 
-			String jdbc, String username, String password, int maxNeutralLossCombination, boolean onlyCHNOPS) throws Exception
+			String jdbc, String username, String password, int maxNeutralLossCombination, boolean onlyCHNOPS, String chemspiderToken) throws Exception
 	{
 		
 		PubChemWebService pw = null;
@@ -501,7 +501,7 @@ public class MetFrag {
 			//TODO fix the candidate retrieval!!!
 			threadExecutor.execute(new FragmenterThread(candidates.get(c).getAccession(), database, pw, spectrum, mzabs, mzppm, 
 					molecularFormulaRedundancyCheck, breakAromaticRings, treeDepth, false, hydrogenTest, neutralLossInEveryLayer, 
-					bondEnergyScoring, breakOnlySelectedBonds, null, true, jdbc, username, password, onlyCHNOPS));		
+					bondEnergyScoring, breakOnlySelectedBonds, null, true, jdbc, username, password, onlyCHNOPS, chemspiderToken));		
 		}
 		
 		threadExecutor.shutdown();
@@ -569,7 +569,8 @@ public class MetFrag {
 	public static List<MetFragResult> startConvenienceMetFusion(String database, String databaseID, String molecularFormula, Double exactMass, WrapperSpectrum spectrum, boolean useProxy, 
 			double mzabs, double mzppm, double searchPPM, boolean molecularFormulaRedundancyCheck, boolean breakAromaticRings, int treeDepth,
 			boolean hydrogenTest, boolean neutralLossInEveryLayer, boolean bondEnergyScoring, boolean breakOnlySelectedBonds, int limit, 
-			String jdbc, String username, String password, boolean uniqueInchi, boolean onlyCHNOPS, boolean generateFragmentsInMemory) throws Exception
+			String jdbc, String username, String password, boolean uniqueInchi, boolean onlyCHNOPS, boolean generateFragmentsInMemory,
+			String chemspiderToken) throws Exception
 	{
 		PubChemWebService pw = null;
 		results = new FragmenterResult();
@@ -585,10 +586,10 @@ public class MetFrag {
 		else if(molecularFormula != null && !molecularFormula.equals("") || (databaseID != null && !databaseID.equals("")))
 		{
 			pw = new PubChemWebService();
-			candidates = Candidates.getOnline(database, databaseID, molecularFormula, exactMass, searchPPM, false, pw, uniqueInchi);
+			candidates = Candidates.getOnline(database, databaseID, molecularFormula, exactMass, searchPPM, false, pw, uniqueInchi, chemspiderToken);
 		}
 		else
-			candidates = Candidates.getLocally(database, exactMass, searchPPM, jdbc, username, password, uniqueInchi);
+			candidates = Candidates.getLocally(database, exactMass, searchPPM, jdbc, username, password, uniqueInchi, chemspiderToken);
 
 
 		System.out.println("Hits in database: " + candidates.size());
@@ -608,7 +609,7 @@ public class MetFrag {
 			
 			threadExecutor.execute(new FragmenterThread(candidates.get(c), database, pw, spectrum, mzabs, mzppm, 
 					molecularFormulaRedundancyCheck, breakAromaticRings, treeDepth, false, hydrogenTest, neutralLossInEveryLayer, 
-					bondEnergyScoring, breakOnlySelectedBonds, null, generateFragmentsInMemory, jdbc, username, password, onlyCHNOPS));		
+					bondEnergyScoring, breakOnlySelectedBonds, null, generateFragmentsInMemory, jdbc, username, password, onlyCHNOPS, chemspiderToken));		
 		}
 		
 		threadExecutor.shutdown();
@@ -1185,8 +1186,10 @@ public class MetFrag {
 	public static void main(String[] args) {
 		WrapperSpectrum spectrum = new WrapperSpectrum("/home/mgerlich/Datasets/allSpectra/PR100337.txt");
 		try {
-			List<MetFragResult> result = MetFrag.startConvenienceMetFusion("pubchem", "", "", 149.10519, spectrum, false, 0.01, 10, 10, true, true, 2, 
-					true, false, true, false, 5000, "jdbc:mysql://rdbms/MetFrag", "swolf", "populusromanus", true, true, false);
+			List<MetFragResult> result = MetFrag.startConvenienceMetFusion("pubchem", "", "", 149.10519, spectrum, 
+					false, 0.01, 10, 10, true, true, 2, 
+					true, false, true, false, 5000, "jdbc:mysql://rdbms/MetFrag", "swolf", "populusromanus", 
+					true, true, false, "eeca1d0f-4c03-4d81-aa96-328cdccf171a");
 			System.out.println("result# -> " + result.size());
 			
 			int counterBad = 0;
