@@ -181,11 +181,13 @@ public class KeggRestService {
 			while((line = breader.readLine()) != null) {
 				if(line.length() != 0) {
 					if(startNames && line.charAt(0) != ' ') break;
-					if(line.startsWith("NAME")) startNames = true;
+					if(line.startsWith("NAME")) {
+						startNames = true;
+						line = line.replace("NAME", "");
+					}
 					if(startNames) {
-						String[] tmp = line.split("\\s+");
-						if(tmp.length <= 1) continue;
-						name += tmp[1].split(";")[0] + "\n";
+						line = line.trim().split(";")[0];
+						name += line + "\n";
 					}
 				}
 			}
@@ -195,6 +197,46 @@ public class KeggRestService {
 			System.err.println("Error: Could not open result stream when using KEGG REST mass search!");
 		}
 		return name;
+	}
+	
+	/**
+	 * identifier as kegg cid
+	 * 
+	 * @param identifier
+	 * @return
+	 */
+	public static String[] KEGGgetNameByCpdAsArray(String identifier)
+	{
+		InputStream stream = getInputStreamFromURL("http://rest.kegg.jp/get/"+identifier);
+		String[] names = new String[0];
+		if(stream == null) return names;
+		Vector<String> namesAsVector = new Vector<String>(); 
+		try {
+			BufferedReader breader = new BufferedReader(new InputStreamReader(stream));
+			String line = "";
+			boolean startNames = false;
+			while((line = breader.readLine()) != null) {
+				if(line.length() != 0) {
+					if(startNames && line.charAt(0) != ' ') break;
+					if(line.startsWith("NAME")) {
+						startNames = true;
+						line = line.replace("NAME", "");
+					}
+					if(startNames) {
+						line = line.trim().split(";")[0];
+						namesAsVector.add(line);
+					}
+				}
+			}
+			stream.close();
+			breader.close();
+		} catch (IOException e) {
+			System.err.println("Error: Could not open result stream when using KEGG REST mass search!");
+		}
+		names = new String[namesAsVector.size()];
+		for(int i = 0; i < names.length; i++)
+			names[i] = namesAsVector.get(i);
+		return names;
 	}
 	
 	/**
