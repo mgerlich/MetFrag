@@ -83,6 +83,12 @@ public class Config {
 		readConfig();
 	}
 	
+	public Config(String jdbcMetchem, String userMetchem, String passMetchem) {
+		this.jdbcPostgres = jdbcMetchem;
+		this.usernamePostgres = userMetchem;
+		this.passwordPostgres = passMetchem;
+	}
+	
 	/**
 	 * Gets the config.
 	 * 
