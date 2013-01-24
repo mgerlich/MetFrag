@@ -42,6 +42,7 @@ import org.openscience.cdk.io.MDLReader;
 import org.openscience.cdk.tools.manipulator.ChemFileManipulator;
 
 import de.ipbhalle.metfrag.chemspiderClient.ChemSpider;
+import de.ipbhalle.metfrag.keggWebservice.KeggRestService;
 import de.ipbhalle.metfrag.keggWebservice.KeggWebservice;
 import de.ipbhalle.metfrag.molDatabase.KEGGLocal;
 import de.ipbhalle.metfrag.molDatabase.PubChemLocal;
@@ -73,9 +74,11 @@ public class Candidates {
 		{
 			//if(molecularFormula != "")
 			if(!molecularFormula.isEmpty())
-				candidates = KeggWebservice.KEGGbySumFormula(molecularFormula);
+				//candidates = KeggWebservice.KEGGbySumFormula(molecularFormula);
+				candidates = KeggRestService.KEGGbySumFormula(molecularFormula);
 			else
-				candidates = KeggWebservice.KEGGbyMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
+				//candidates = KeggWebservice.KEGGbyMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
+				candidates = KeggRestService.KEGGbyMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
 		}
 		else if(database.equals("chemspider") && databaseID.equals(""))
 		{
@@ -129,9 +132,11 @@ public class Candidates {
 		{
 			//if(molecularFormula != "")
 			if(!molecularFormula.isEmpty())
-				candidates = KeggWebservice.KEGGbySumFormula(molecularFormula);
+				//candidates = KeggWebservice.KEGGbySumFormula(molecularFormula);
+				candidates = KeggRestService.KEGGbySumFormula(molecularFormula);
 			else
-				candidates = KeggWebservice.KEGGbyMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
+				//candidates = KeggWebservice.KEGGbyMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
+				candidates = KeggRestService.KEGGbyMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)));
 			if(uniqueInchi) 
 				candidates = removeDuplicatesByInchi(candidates, database, chemspiderToken);
 		}
@@ -281,7 +286,8 @@ public class Candidates {
 			if(candidate.startsWith("cpd:"))
 				candidate = candidate.substring(4);
 			
-			String candidateMol = KeggWebservice.KEGGgetMol(candidate, "");
+			//String candidateMol = KeggWebservice.KEGGgetMol(candidate, "");
+			String candidateMol = KeggRestService.KEGGgetMol(candidate);
 			MDLReader reader;
 			List<IAtomContainer> containersList;
 			
@@ -345,7 +351,7 @@ public class Candidates {
 		}
 		else if(database.equals("chemspider"))
 		{
-			molecule = ChemSpider.getMol(candidate, chemspiderToken, true);
+			molecule = ChemSpider.getMol(candidate, chemspiderToken, getAll);
 		}
 		else if(database.equals("pubchem"))
 		{
