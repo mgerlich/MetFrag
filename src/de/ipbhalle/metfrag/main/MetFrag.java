@@ -493,15 +493,33 @@ public class MetFrag {
 	    ExecutorService threadExecutor = null;
 	    System.out.println("Used Threads: " + threads);
 	    threadExecutor = Executors.newFixedThreadPool(threads);
-			
+		Config conf = new Config(jdbc, username, password);
+		
 		for (int c = 0; c < candidates.size(); c++) {
 			
 			if(c > limit)
 				break;
+			
+			FragmenterThread ft = null;
+			if(database.equals("chebi")) {
+//				(CandidateMetChem candidate, String database, PubChemWebService pw,
+//						WrapperSpectrum spectrum, double mzabs, double mzppm, boolean sumFormulaRedundancyCheck,
+//						boolean breakAromaticRings, int treeDepth, boolean showDiagrams, boolean hydrogenTest,
+//						boolean neutralLossAdd, boolean bondEnergyScoring, boolean isOnlyBreakSelectedBonds, Config c,
+//						boolean generateFragmentsInMemory)
+				
+				ft = new FragmenterThread(candidates.get(c), database, pw, spectrum, mzabs, mzppm, 
+						molecularFormulaRedundancyCheck, breakAromaticRings, treeDepth, false, hydrogenTest, neutralLossInEveryLayer, 
+						bondEnergyScoring, breakOnlySelectedBonds, conf, true);	//, jdbc, username, password, onlyCHNOPS, chemspiderToken);
+			}
+			else {
+				ft = new FragmenterThread(candidates.get(c).getAccession(), database, pw, spectrum, mzabs, mzppm, 
+						molecularFormulaRedundancyCheck, breakAromaticRings, treeDepth, false, hydrogenTest, neutralLossInEveryLayer, 
+						bondEnergyScoring, breakOnlySelectedBonds, null, true, jdbc, username, password, onlyCHNOPS, chemspiderToken);
+			}
+			
 			//TODO fix the candidate retrieval!!!
-			threadExecutor.execute(new FragmenterThread(candidates.get(c).getAccession(), database, pw, spectrum, mzabs, mzppm, 
-					molecularFormulaRedundancyCheck, breakAromaticRings, treeDepth, false, hydrogenTest, neutralLossInEveryLayer, 
-					bondEnergyScoring, breakOnlySelectedBonds, null, true, jdbc, username, password, onlyCHNOPS, chemspiderToken));		
+			threadExecutor.execute(ft);		
 		}
 		
 		threadExecutor.shutdown();
@@ -585,6 +603,7 @@ public class MetFrag {
 		}
 		else if(molecularFormula != null && !molecularFormula.equals("") || (databaseID != null && !databaseID.equals("")))
 		{
+//		else {
 			pw = new PubChemWebService();
 			candidates = Candidates.getOnline(database, databaseID, molecularFormula, exactMass, searchPPM, false, pw, uniqueInchi, chemspiderToken);
 		}
