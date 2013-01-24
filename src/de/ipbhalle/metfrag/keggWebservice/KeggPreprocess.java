@@ -171,7 +171,9 @@ public class KeggPreprocess {
 			String date = "2009.03.25";
 			String author = "MetFrag Revision: 388";
 			String copyright = "Institute of Plant Biochemistry, Halle, Germany";
-			String namesArray[] = KeggWebservice.KEGGgetNameByCpd(keggID);
+			//String namesArray[] = KeggWebservice.KEGGgetNameByCpd(keggID);
+			String ids = KeggRestService.KEGGgetNameByCpd(keggID);
+			String namesArray[] = ids.split("\n");
 			String name = "";
 			for (int i = 0; i < namesArray.length; i++) {
 				name += "CH$NAME: " + namesArray[i] + "\n";
