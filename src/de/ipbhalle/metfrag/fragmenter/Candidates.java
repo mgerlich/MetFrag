@@ -39,6 +39,8 @@ import org.openscience.cdk.inchi.InChIGenerator;
 import org.openscience.cdk.inchi.InChIGeneratorFactory;
 import org.openscience.cdk.interfaces.IAtomContainer;
 import org.openscience.cdk.io.MDLReader;
+import org.openscience.cdk.tools.CDKHydrogenAdder;
+import org.openscience.cdk.tools.manipulator.AtomContainerManipulator;
 import org.openscience.cdk.tools.manipulator.ChemFileManipulator;
 
 import de.ipbhalle.metfrag.chemspiderClient.ChemSpider;
@@ -451,7 +453,17 @@ public class Candidates {
 			
 			if(uniqueStructures[index1]) {
 				
-				InChIGenerator ig = igf.getInChIGenerator(molecules[index1]);
+				IAtomContainer ac = molecules[index1];
+				try {
+					AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(ac);
+					CDKHydrogenAdder hAdder = CDKHydrogenAdder.getInstance(ac.getBuilder());
+			        hAdder.addImplicitHydrogens(ac);
+			        AtomContainerManipulator.convertImplicitToExplicitHydrogens(ac);
+			        AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(ac);
+				} catch (CDKException e) {
+				}
+				
+				InChIGenerator ig = igf.getInChIGenerator(ac);
 				if(ig.getReturnStatus() == INCHI_RET.ERROR) {
 					System.err.println("Error creating InChI for [" + candidates.get(index1) + "]");
 					continue;
@@ -467,7 +479,16 @@ public class Candidates {
 					
 					if(uniqueStructures[index2]) {
 						
-						ig = igf.getInChIGenerator(molecules[index2]);
+						IAtomContainer ac2 = molecules[index2];
+						try {
+							AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(ac2);
+							CDKHydrogenAdder hAdder = CDKHydrogenAdder.getInstance(ac2.getBuilder());
+					        hAdder.addImplicitHydrogens(ac2);
+					        AtomContainerManipulator.convertImplicitToExplicitHydrogens(ac2);
+						} catch (CDKException e) {
+						}
+						
+						ig = igf.getInChIGenerator(ac2);
 						String inchikey2 = ig.getInchiKey();
 						if(inchikey2 == null || inchikey2.isEmpty())
 							continue;
