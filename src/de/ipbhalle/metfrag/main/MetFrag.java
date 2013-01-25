@@ -562,9 +562,8 @@ public class MetFrag {
 	
 	/**
 	 * MetFrag. Start the fragmenter thread. Afterwards score the results.
-	 * 
+	 *
 	 * @param database the database
-	 * @param searchPPM the search ppm
 	 * @param databaseID the database id
 	 * @param molecularFormula the molecular formula
 	 * @param exactMass the exact mass
@@ -572,6 +571,7 @@ public class MetFrag {
 	 * @param useProxy the use proxy
 	 * @param mzabs the mzabs
 	 * @param mzppm the mzppm
+	 * @param searchPPM the search ppm
 	 * @param molecularFormulaRedundancyCheck the molecular formula redundancy check
 	 * @param breakAromaticRings the break aromatic rings
 	 * @param treeDepth the tree depth
@@ -579,9 +579,15 @@ public class MetFrag {
 	 * @param neutralLossInEveryLayer the neutral loss in every layer
 	 * @param bondEnergyScoring the bond energy scoring
 	 * @param breakOnlySelectedBonds the break only selected bonds
-	 * 
+	 * @param limit the limit
+	 * @param jdbc the jdbc
+	 * @param username the username
+	 * @param password the password
+	 * @param uniqueInchi the unique inchi
+	 * @param onlyCHNOPS the only chnops
+	 * @param generateFragmentsInMemory the generate fragments in memory
+	 * @param chemspiderToken the chemspider token
 	 * @return the string
-	 * 
 	 * @throws Exception the exception
 	 */
 	public static List<MetFragResult> startConvenienceMetFusion(String database, String databaseID, String molecularFormula, Double exactMass, WrapperSpectrum spectrum, boolean useProxy, 
