@@ -94,9 +94,11 @@ public class Candidates {
 		{
 			//if(molecularFormula != "")
 			if(!molecularFormula.isEmpty())
-				candidates = pubchem.getHitsbySumFormula(molecularFormula, useIPBProxy);
+				//candidates = pubchem.getHitsbySumFormula(molecularFormula, useIPBProxy);
+				candidates = pubchem.getHitsBySumFormulaHTTP(molecularFormula);
 			else
-				candidates = pubchem.getHitsByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE, useIPBProxy);
+				//candidates = pubchem.getHitsByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE, useIPBProxy);
+				candidates = pubchem.getHitsByMassHTTP(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE);
 		}
 		else if (!databaseID.equals(""))
 		{	
@@ -162,9 +164,11 @@ public class Candidates {
 		{
 			//if(molecularFormula != "")
 			if(!molecularFormula.isEmpty())
-				candidates = pubchem.getHitsbySumFormula(molecularFormula, useIPBProxy, uniqueInchi);
+				//candidates = pubchem.getHitsbySumFormula(molecularFormula, useIPBProxy, uniqueInchi);
+				candidates = pubchem.getHitsBySumFormulaHTTP(molecularFormula);
 			else
-				candidates = pubchem.getHitsByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE, useIPBProxy, uniqueInchi);
+				//candidates = pubchem.getHitsByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE, useIPBProxy, uniqueInchi);
+				candidates = pubchem.getHitsByMassHTTP(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE);
 		}
 		else if (!databaseID.equals(""))
 		{	
@@ -354,6 +358,7 @@ public class Candidates {
 		else if(database.equals("chemspider"))
 		{
 			molecule = ChemSpider.getMol(candidate, chemspiderToken, getAll);
+			//molecule = ChemSpider.getMol(candidate, true, chemspiderToken);
 		}
 		else if(database.equals("pubchem"))
 		{
@@ -362,6 +367,65 @@ public class Candidates {
 		}
 		
 		return molecule;
+	}
+	
+	/**
+	 * 
+	 * 
+	 * 
+	 * @param database
+	 * @param databaseIDs
+	 * @param formula
+	 * @param exactMass
+	 * @param searchppm
+	 * @param useProxy
+	 * @param pubchem
+	 * @param verbose
+	 * @return
+	 * @throws Exception
+	 */
+	public static Vector<String> getOnline(String database,
+			String[] databaseIDs, String formula, double exactMass,
+			double searchppm, boolean useProxy, PubChemWebService pubchem,
+			boolean verbose) throws Exception {
+		
+		Vector<String> candidates = new Vector<String>();
+		
+		if(database.equals("kegg") && (databaseIDs == null || databaseIDs.length == 0))
+		{
+			if(formula != "") {
+				candidates = KeggRestService.KEGGbySumFormula(formula);
+			}
+			else {
+				candidates = KeggRestService.KEGGbyMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchppm)));
+			}
+		}
+		else if(database.equals("chemspider") && (databaseIDs == null || databaseIDs.length == 0))
+		{
+			if(formula != "")
+				candidates = ChemSpider.getChemspiderBySumFormula(formula);
+			else
+				candidates = ChemSpider.getChemspiderByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchppm)));
+		}
+		else if(database.equals("pubchem") && (databaseIDs == null || databaseIDs.length == 0))
+		{
+			if(pubchem == null) return candidates;
+			if(formula != "")
+				candidates = pubchem.getHitsBySumFormulaHTTP(formula);
+			else {
+				candidates = pubchem.getHitsByMassHTTP(exactMass, (PPMTool.getPPMDeviation(exactMass, searchppm)), Integer.MAX_VALUE);
+			}
+		}
+		else if ((databaseIDs != null && databaseIDs.length != 0))
+		{	
+			candidates = new Vector<String>();
+			for(int i = 0; i < databaseIDs.length; i++)
+				candidates.add(databaseIDs[i]);
+			if(database.equals("pubchem") && pubchem != null) {
+				candidates = pubchem.getHitsByIDs(candidates);
+			}
+		}
+		return candidates;
 	}
 	
 	/**
