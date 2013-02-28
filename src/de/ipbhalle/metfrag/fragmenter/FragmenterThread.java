@@ -1,46 +1,45 @@
 /*
+* This library is free software; you can redistribute it and/or
+* modify it under the terms of the GNU Lesser General Public
+* License as published by the Free Software Foundation; either
+* version 2.1 of the License, or (at your option) any later version.
 *
-* Copyright (C) 2009-2010 IPB Halle, Sebastian Wolf
-*
-* Contact: swolf@ipb-halle.de
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
+* This library is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+* Lesser General Public License for more details.
 *
-* You should have received a copy of the GNU General Public License
-* along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*
+* You should have received a copy of the GNU Lesser General Public
+* License along with this library; if not, write to the Free Software
+* Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 */
+
 
 package de.ipbhalle.metfrag.fragmenter;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
-import org.openscience.cdk.atomtype.CDKAtomTypeMatcher;
+import org.openscience.cdk.Molecule;
+import org.openscience.cdk.MoleculeSet;
 import org.openscience.cdk.exception.CDKException;
 import org.openscience.cdk.graph.ConnectivityChecker;
 import org.openscience.cdk.interfaces.IAtom;
 import org.openscience.cdk.interfaces.IAtomContainer;
-import org.openscience.cdk.interfaces.IAtomType;
-import org.openscience.cdk.interfaces.IPseudoAtom;
+import org.openscience.cdk.interfaces.IMolecule;
+import org.openscience.cdk.io.SDFWriter;
 import org.openscience.cdk.tools.CDKHydrogenAdder;
 import org.openscience.cdk.tools.manipulator.AtomContainerManipulator;
-import org.openscience.cdk.tools.manipulator.AtomTypeManipulator;
 
 import de.ipbhalle.metfrag.databaseMetChem.CandidateMetChem;
+import de.ipbhalle.metfrag.databaseMetChem.Query;
 import de.ipbhalle.metfrag.fragmenter.Fragmenter;
 import de.ipbhalle.metfrag.main.Config;
 import de.ipbhalle.metfrag.main.MetFrag;
@@ -52,14 +51,12 @@ import de.ipbhalle.metfrag.spectrum.AssignFragmentPeak;
 import de.ipbhalle.metfrag.spectrum.CleanUpPeakList;
 import de.ipbhalle.metfrag.spectrum.PeakMolPair;
 import de.ipbhalle.metfrag.spectrum.WrapperSpectrum;
-import de.ipbhalle.metfrag.tools.renderer.StructureRenderer;
 
 public class FragmenterThread implements Runnable{
 	
 	private String database = null;
 	private PubChemWebService pw = null;
 	private String candidate = null;
-	private CandidateMetChem candidateMetChem;
 	private double mzabs;
 	private double mzppm;
 	private boolean sumFormulaRedundancyCheck = true;
@@ -73,14 +70,24 @@ public class FragmenterThread implements Runnable{
 	private Config c = null;
 	private boolean generateFragmentsInMemory = true;
 	private String jdbc, username, password = "";
-	private boolean SDFDatabase = false;
-	private IAtomContainer mol;
+	private IAtomContainer candidateStructure = null;
+	private String saveFragmentsPath = "";
+	private String sampleName = "";
+	private boolean localdb = false;
+	
+	private String chemSpiderToken = "";
+	private static boolean verbose;
+	private static int candidateNumber;
+	private static int sizeCandidates;
+	private boolean onlyChnopsCompounds = false;
+	
+	private CandidateMetChem candidateMetChem;
 	private boolean useMetChem = false;
 	private boolean onlyCHNOPS = true;
-	private String chemspiderToken = "";
+	private boolean SDFDatabase = false;
 	
 	/**
-	 * Instantiates a new pubChem search thread. ONLINE
+	 * Instantiates a new pubChem search thread.
 	 * 
 	 * @param candidate the candidate
 	 * @param mzabs the mzabs
@@ -121,33 +128,6 @@ public class FragmenterThread implements Runnable{
 		this.c = c;
 		this.generateFragmentsInMemory = generateFragmentsInMemory;
 	}
-	
-	
-	public FragmenterThread(CandidateMetChem candidate, String database, PubChemWebService pw,
-			WrapperSpectrum spectrum, double mzabs, double mzppm, boolean sumFormulaRedundancyCheck,
-			boolean breakAromaticRings, int treeDepth, boolean showDiagrams, boolean hydrogenTest,
-			boolean neutralLossAdd, boolean bondEnergyScoring, boolean isOnlyBreakSelectedBonds, Config c,
-			boolean generateFragmentsInMemory)
-	{
-		this.candidateMetChem = candidate;
-		this.candidate = candidate.getAccession();
-		this.pw = pw;
-		this.database = database;
-		this.mzabs = mzabs;
-		this.mzppm = mzppm;
-		this.sumFormulaRedundancyCheck = sumFormulaRedundancyCheck;
-		this.breakAromaticRings = breakAromaticRings;
-		this.spectrum = spectrum;
-		this.hydrogenTest = hydrogenTest;
-		this.neutralLossAdd = neutralLossAdd;
-		this.bondEnergyScoring = bondEnergyScoring;
-		this.isOnlyBreakSelectedBonds = isOnlyBreakSelectedBonds;
-		this.treeDepth = treeDepth;
-		this.c = c;
-		this.generateFragmentsInMemory = generateFragmentsInMemory;
-		setUseMetChem(true);
-	}
-	
 	
 	/**
 	 * Instantiates a new pubChem search thread. LOCALLY
@@ -193,7 +173,234 @@ public class FragmenterThread implements Runnable{
 		this.password = password;
 		this.jdbc = jdbc;
 		this.onlyCHNOPS = onlyCHNOPS;
-		this.chemspiderToken = chemspiderToken;
+		this.chemSpiderToken = chemspiderToken;
+	}
+	
+	public FragmenterThread(CandidateMetChem candidate, String database, PubChemWebService pw,
+			WrapperSpectrum spectrum, double mzabs, double mzppm, boolean sumFormulaRedundancyCheck,
+			boolean breakAromaticRings, int treeDepth, boolean showDiagrams, boolean hydrogenTest,
+			boolean neutralLossAdd, boolean bondEnergyScoring, boolean isOnlyBreakSelectedBonds, Config c,
+			boolean generateFragmentsInMemory)
+	{
+		this.setCandidateMetChem(candidate);
+		this.candidate = candidate.getAccession();
+		this.pw = pw;
+		this.database = database;
+		this.mzabs = mzabs;
+		this.mzppm = mzppm;
+		this.sumFormulaRedundancyCheck = sumFormulaRedundancyCheck;
+		this.breakAromaticRings = breakAromaticRings;
+		this.spectrum = spectrum;
+		this.hydrogenTest = hydrogenTest;
+		this.neutralLossAdd = neutralLossAdd;
+		this.bondEnergyScoring = bondEnergyScoring;
+		this.isOnlyBreakSelectedBonds = isOnlyBreakSelectedBonds;
+		this.treeDepth = treeDepth;
+		this.c = c;
+		this.generateFragmentsInMemory = generateFragmentsInMemory;
+		setUseMetChem(true);
+	}
+	
+	/**
+	 * 
+	 * @param candidateStructure
+	 * @param candidate
+	 * @param database
+	 * @param pw
+	 * @param spectrum
+	 * @param mzabs
+	 * @param mzppm
+	 * @param sumFormulaRedundancyCheck
+	 * @param breakAromaticRings
+	 * @param treeDepth
+	 * @param showDiagrams
+	 * @param hydrogenTest
+	 * @param neutralLossAdd
+	 * @param bondEnergyScoring
+	 * @param isOnlyBreakSelectedBonds
+	 * @param c
+	 * @param generateFragmentsInMemory
+	 */
+	public FragmenterThread(IAtomContainer candidateStructure, String candidate, String database, PubChemWebService pw,
+			WrapperSpectrum spectrum, double mzabs, double mzppm, boolean sumFormulaRedundancyCheck,
+			boolean breakAromaticRings, int treeDepth, boolean showDiagrams, boolean hydrogenTest,
+			boolean neutralLossAdd, boolean bondEnergyScoring, boolean isOnlyBreakSelectedBonds, Config c,
+			boolean generateFragmentsInMemory)
+	{
+		this.candidate = candidate;
+		this.pw = pw;
+		this.database = database;
+		this.mzabs = mzabs;
+		this.mzppm = mzppm;
+		this.sumFormulaRedundancyCheck = sumFormulaRedundancyCheck;
+		this.breakAromaticRings = breakAromaticRings;
+		this.spectrum = spectrum;
+		this.hydrogenTest = hydrogenTest;
+		this.neutralLossAdd = neutralLossAdd;
+		this.bondEnergyScoring = bondEnergyScoring;
+		this.isOnlyBreakSelectedBonds = isOnlyBreakSelectedBonds;
+		this.treeDepth = treeDepth;
+		this.c = c;
+		this.generateFragmentsInMemory = generateFragmentsInMemory;
+		this.candidateStructure = candidateStructure;
+	}
+	
+	
+	
+	/**
+	 * Instantiates a new pubChem search thread.
+	 * 
+	 * @param candidate the candidate
+	 * @param mzabs the mzabs
+	 * @param mzppm the mzppm
+	 * @param sumFormulaRedundancyCheck the sum formula redundancy check
+	 * @param breakAromaticRings the break aromatic rings
+	 * @param treeDepth the tree depth
+	 * @param showDiagrams the show diagrams
+	 * @param spectrum the spectrum
+	 * @param hydrogenTest the hydrogen test
+	 * @param database the database
+	 * @param pw the pw
+	 * @param neutralLossAdd the neutral loss add
+	 * @param bondEnergyScoring the bond energy scoring
+	 * @param isOnlyBreakSelectedBonds the is only break selected bonds
+	 * @param c the c
+	 * @param generateFragmentsInMemory the generate fragments in memory
+	 */
+	public FragmenterThread(String candidate, String database, PubChemWebService pw,
+			WrapperSpectrum spectrum, double mzabs, double mzppm, boolean sumFormulaRedundancyCheck,
+			boolean breakAromaticRings, int treeDepth, boolean showDiagrams, boolean hydrogenTest,
+			boolean neutralLossAdd, boolean bondEnergyScoring, boolean isOnlyBreakSelectedBonds, Config c,
+			boolean generateFragmentsInMemory, String jdbc, String username, String password)
+	{
+		this.candidate = candidate;
+		this.pw = pw;
+		this.database = database;
+		this.mzabs = mzabs;
+		this.mzppm = mzppm;
+		this.sumFormulaRedundancyCheck = sumFormulaRedundancyCheck;
+		this.breakAromaticRings = breakAromaticRings;
+		this.spectrum = spectrum;
+		this.hydrogenTest = hydrogenTest;
+		this.neutralLossAdd = neutralLossAdd;
+		this.bondEnergyScoring = bondEnergyScoring;
+		this.isOnlyBreakSelectedBonds = isOnlyBreakSelectedBonds;
+		this.treeDepth = treeDepth;
+		this.generateFragmentsInMemory = generateFragmentsInMemory;
+		this.username = username;
+		this.password = password;
+		this.jdbc = jdbc;
+	}
+	
+	/**
+	 * used by database search of command line tool
+	 * 
+	 * @param database
+	 * @param candidate
+	 * @param pubchem
+	 * @param spec
+	 * @param mzabs
+	 * @param mzppm
+	 * @param molredundancycheck
+	 * @param breakAromaticRings
+	 * @param treeDepth
+	 * @param hydrogenTest
+	 * @param neutralLossInEveryLayer
+	 * @param bondEnergyScoring
+	 * @param breakOnlySelectedBonds
+	 * @param chemSpiderToken
+	 * @param generateFragmentsInMemory
+	 * @param pathToStoreFrags
+	 * @param sampleName
+	 * @param localdb
+	 * @param dblink
+	 * @param dbuser
+	 * @param dbpass
+	 */
+	public FragmenterThread(String candidate, String database,
+			PubChemWebService pubchem, WrapperSpectrum spec, double mzabs,
+			double mzppm, boolean molredundancycheck,
+			boolean breakAromaticRings, int treeDepth, boolean hydrogenTest, 
+			boolean neutralLossInEveryLayer, boolean bondEnergyScoring, 
+			boolean breakOnlySelectedBonds, String chemSpiderToken, boolean generateFragmentsInMemory,
+			String pathToStoreFrags, String sampleName, boolean localdb, boolean onlyChnopsCompounds,
+			String dblink, String dbuser, String dbpass) {
+		this.candidate = candidate;
+		this.onlyChnopsCompounds = onlyChnopsCompounds;
+		this.pw = pubchem;
+		this.database = database;
+		this.mzabs = mzabs;
+		this.mzppm = mzppm;
+		this.sumFormulaRedundancyCheck = molredundancycheck;
+		this.breakAromaticRings = breakAromaticRings;
+		this.spectrum = spec;
+		this.hydrogenTest = hydrogenTest;
+		this.neutralLossAdd = neutralLossInEveryLayer;
+		this.bondEnergyScoring = bondEnergyScoring;
+		this.isOnlyBreakSelectedBonds = breakOnlySelectedBonds;
+		this.treeDepth = treeDepth;
+		this.generateFragmentsInMemory = generateFragmentsInMemory;
+		this.saveFragmentsPath = pathToStoreFrags;
+		this.chemSpiderToken = chemSpiderToken;
+		this.sampleName = sampleName;
+		this.localdb = localdb;
+		this.jdbc = dblink;
+		this.username = dbuser;
+		this.password = dbpass;
+		
+		
+	}
+
+	/**
+	 * used for sdf database of command line tool
+	 * 
+	 * @param candidateStructure
+	 * @param candidate
+	 * @param database
+	 * @param pw
+	 * @param spectrum
+	 * @param mzabs
+	 * @param mzppm
+	 * @param sumFormulaRedundancyCheck
+	 * @param breakAromaticRings
+	 * @param treeDepth
+	 * @param showDiagrams
+	 * @param hydrogenTest
+	 * @param neutralLossAdd
+	 * @param bondEnergyScoring
+	 * @param isOnlyBreakSelectedBonds
+	 * @param c
+	 * @param generateFragmentsInMemory
+	 * @param filenameprefix
+	 * @param ids
+	 * @param numCandidates
+	 * @param sampleName
+	 * @param onlyChnopsCompounds
+	 */
+	public FragmenterThread(IAtomContainer candidateStructure, String candidate, String database, 
+			WrapperSpectrum spectrum, double mzabs, double mzppm, boolean sumFormulaRedundancyCheck,
+			boolean breakAromaticRings, int treeDepth, boolean showDiagrams, boolean hydrogenTest,
+			boolean neutralLossAdd, boolean bondEnergyScoring, boolean isOnlyBreakSelectedBonds, 
+			boolean generateFragmentsInMemory, String sampleName, 
+			boolean onlyChnopsCompounds, String pathToStoreFrags)
+	{
+		this.onlyChnopsCompounds = onlyChnopsCompounds;
+		this.candidate = candidate;
+		this.database = database;
+		this.mzabs = mzabs;
+		this.mzppm = mzppm;
+		this.sumFormulaRedundancyCheck = sumFormulaRedundancyCheck;
+		this.breakAromaticRings = breakAromaticRings;
+		this.spectrum = spectrum;
+		this.hydrogenTest = hydrogenTest;
+		this.neutralLossAdd = neutralLossAdd;
+		this.bondEnergyScoring = bondEnergyScoring;
+		this.isOnlyBreakSelectedBonds = isOnlyBreakSelectedBonds;
+		this.treeDepth = treeDepth;
+		this.generateFragmentsInMemory = generateFragmentsInMemory;
+		this.candidateStructure = candidateStructure;
+		this.sampleName = sampleName;
+		this.saveFragmentsPath = pathToStoreFrags;
 	}
 	
 	/**
@@ -234,84 +441,75 @@ public class FragmenterThread implements Runnable{
 		this.isOnlyBreakSelectedBonds = isOnlyBreakSelectedBonds;
 		this.treeDepth = treeDepth;
 		this.generateFragmentsInMemory = generateFragmentsInMemory;
-		this.SDFDatabase = SDFDatabase;
-		this.mol = mol;
+		this.setSDFDatabase(SDFDatabase);
+		this.candidateStructure = mol;
 	}
 	
-	
-	@Override public void run()
+	@Override 
+	public void run()
 	{		
 		IAtomContainer molecule = null;
 		
 		try
 		{	    
-			//local SDF database was given
-			if(isSDFDatabase())
-			{
-				molecule = mol;
+			if(this.candidateStructure != null) {
+				molecule = this.candidateStructure;
+			} else if(this.localdb) {
+				Query query = MetFrag.getQuery();
+				if(query != null) molecule = query.getCompoundUsingIdentifierConnectionOpen(this.candidate, this.database);
 			}
-			else if(useMetChem)
+			else if(pw == null && c == null) {
+				molecule = Candidates.getCompoundLocally(this.database, candidate, jdbc, username, password, false, chemSpiderToken);
+			} else if(pw == null) {
+				molecule = Candidates.getCompoundLocally(this.database, candidate, c.getJdbc(), c.getUsername(), c.getPassword(), false, chemSpiderToken);
+			} else
 			{
-				molecule = CandidatesMetChem.getCompound(candidateMetChem.getCompoundID(), c.getJdbcPostgres(), c.getUsernamePostgres(), c.getPasswordPostgres());
-			}
-			//retrieve the candidate from the database
-			else if(pw == null && c == null)
-				molecule = Candidates.getCompoundLocally(this.database, candidate, jdbc, username, password, !onlyCHNOPS, chemspiderToken);
-			else if(pw == null)
-				molecule = Candidates.getCompoundLocally(this.database, candidate, c.getJdbc(), c.getUsername(), c.getPassword(), !onlyCHNOPS, chemspiderToken);
-			else
-			{
-				molecule = Candidates.getCompound(database, candidate, pw, chemspiderToken);
-				if(molecule == null && database.equals("pubchem"))
-					molecule = pw.getSingleMol(candidate, false);
+				if(c != null) {
+					molecule = Candidates.getCompound(this.database, this.candidate, this.pw, this.c.getChemspiderToken());
+				}
+				else if(this.chemSpiderToken.length() != 0) {
+					molecule = Candidates.getCompound(this.database, this.candidate, this.pw, this.chemSpiderToken);
+				}
+				else {
+					molecule = Candidates.getCompound(this.database, this.candidate, this.pw, "");
+				}
 			}
 			
-			//molecule is not stored in the database or not chonsp!
-			if(molecule == null)
+			if(molecule == null) {
+				if(verbose) System.out.println((++candidateNumber) + " of " + sizeCandidates + " - ID: "+ this.candidate +" -> error reading molecule");
 				return;
-			boolean isConnected = true;
-			if (molecule != null)
-				isConnected = ConnectivityChecker.isConnected(molecule);
-			if(!isConnected)
+			}
+			else if(!ConnectivityChecker.isConnected(molecule)) {
+				if(verbose) System.out.println((++candidateNumber) + " of " + sizeCandidates + " - ID: " + this.candidate + " -> no connected molecule");
 				return;
+			}
+			else if(this.onlyChnopsCompounds && !isCHNOPSCompound(molecule)) {
+				if(verbose) System.out.println((++candidateNumber) + " of " + sizeCandidates + " - ID: " + this.candidate + " -> no CHNOPS compound");
+				return;
+			}
 	        
 	         
 	        try
 	        {
-	        	//percieve atom types
-	        	synchronized (molecule) {
-	        		CDKAtomTypeMatcher matcher = CDKAtomTypeMatcher.getInstance(molecule.getBuilder());
-	        		while(matcher == null)
-	        		{
-	        			matcher = CDKAtomTypeMatcher.getInstance(molecule.getBuilder());
-	        			System.err.println("BUG: percieve and cofigure atoms");
-	        		}
-	        		
-	                for (IAtom atom : molecule.atoms()) {
-	                    if (!(atom instanceof IPseudoAtom)) {
-	                        IAtomType matched = matcher.findMatchingAtomType(molecule, atom);
-	                        if (matched != null) AtomTypeManipulator.configure(atom, matched);
-	                    }
-	                }
-				}      
+		        //add hydrogens
+		        AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(molecule);
 		        CDKHydrogenAdder hAdder = CDKHydrogenAdder.getInstance(molecule.getBuilder());
-		        hAdder.addImplicitHydrogens(molecule);
+		        for(int i = 0; i < molecule.getAtomCount(); i++) { 	
+		        	hAdder.addImplicitHydrogens(molecule, molecule.getAtom(i));
+		        }
 		        AtomContainerManipulator.convertImplicitToExplicitHydrogens(molecule);
 	        }
-	        //there is a bug in cdk??
 	        catch(IllegalArgumentException e)
             {
 	        	MetFrag.results.addToCompleteLog("Error: " + candidate + " Message: " + e.getMessage());
-            	//skip it
             	return;
             }
 	        
 	        
-	        //get the original peak list again
-			Vector<Peak> peakList = spectrum.getPeakList();
+	        Vector<Peak> peakList = spectrum.getPeakList();
 	        
 	        Fragmenter fragmenter = new Fragmenter((Vector<Peak>)peakList.clone(), mzabs, mzppm, spectrum.getMode(), breakAromaticRings, sumFormulaRedundancyCheck, neutralLossAdd, isOnlyBreakSelectedBonds);
-	        long start = System.currentTimeMillis();
+	      
 	        List<IAtomContainer> generatedFrags = null;
 	        try
 	        {
@@ -329,10 +527,7 @@ public class FragmenterThread implements Runnable{
 	        	MetFrag.results.addToCompleteLog("Error: " + candidate + " Message: " + e.getMessage());
 	        	return;
 	        }
-	        long time = System.currentTimeMillis() - start;
-//	        System.out.println("Benötigte Zeit: " + time + " Got " + generatedFrags.size() + " fragments");
 
-	        //read temp files in again
 	        List<IAtomContainer> l = generatedFrags;
 	                
 
@@ -342,20 +537,19 @@ public class FragmenterThread implements Runnable{
 				CleanUpPeakList cList = new CleanUpPeakList((Vector<Peak>)peakList.clone());
 				Vector<Peak> cleanedPeakList = cList.getCleanedPeakList(spectrum.getExactMass());
 				
-				
 				//now find corresponding fragments to the mass
 				AssignFragmentPeak afp = new AssignFragmentPeak();
 				afp.setHydrogenTest(hydrogenTest);
 				afp.assignFragmentPeak(l, cleanedPeakList, mzabs, mzppm, spectrum.getMode(), false, spectrum.isPositive());
 				Vector<PeakMolPair> hits = afp.getHits();
-				
+				if(this.saveFragmentsPath != "") saveFragments(hits);
 				
 				//now "real" scoring --> depends on intensities
 				Scoring score = new Scoring(spectrum, candidate);
 				double currentScore = 0.0;
 				if(this.bondEnergyScoring)
-					currentScore = score.computeScoringWithBondEnergies(hits);
-//					currentScore = score.computeScoringOptimized(hits, spectrum.getExactMass());
+//					currentScore = score.computeScoringWithBondEnergies(hits);
+					currentScore = score.computeScoringOptimized(hits, spectrum.getExactMass());
 				else
 					currentScore = score.computeScoringPeakMolPair(hits);
 				
@@ -428,17 +622,12 @@ public class FragmenterThread implements Runnable{
 					hitsListTest.add(hits.get(i).getFragment());
 				}
 
+				if(verbose) System.out.println((++candidateNumber) + " of " + sizeCandidates + " - ID: " + this.candidate);
 			}
 			catch(CDKException e)
 			{
 				System.out.println("CDK error!" + e.getMessage());
 				MetFrag.results.addToCompleteLog("CDK Error! " + e.getMessage() + " File: " + candidate);
-			}
-			catch(Exception e)
-			{
-				System.out.println("Error: " + e.getMessage());
-				e.printStackTrace();
-				MetFrag.results.addToCompleteLog("Error! "+ e.getMessage() + " File: " + candidate);
 			}
 			catch(OutOfMemoryError e)
 			{
@@ -446,8 +635,12 @@ public class FragmenterThread implements Runnable{
 				System.gc();
 				MetFrag.results.addToCompleteLog("Out of memory! "+ e.getMessage() + " File: " + candidate);
 			}
-
-	        
+			catch(Exception e)
+			{
+				System.out.println("Error: " + e.getMessage());
+				e.printStackTrace();
+				MetFrag.results.addToCompleteLog("Error! "+ e.getMessage() + " File: " + candidate);
+			}
 		}
 		catch(CDKException e)
 		{
@@ -464,70 +657,169 @@ public class FragmenterThread implements Runnable{
 			System.out.println("IO error: " + e.getMessage());
 			MetFrag.results.addToCompleteLog("IO Error! "+ e.getMessage() + "File: " + candidate);
 		}
-		catch(Exception e)
-		{
-			System.out.println("Error: " + e.getMessage());
-			e.printStackTrace();
-			MetFrag.results.addToCompleteLog("Error! "+ e.getMessage() + "File: " + candidate);
-		}
 		catch(OutOfMemoryError e)
 		{
 			System.out.println("Out of memory: " + e.getMessage() + "\n" + e.getStackTrace());
 			System.gc();
 			MetFrag.results.addToCompleteLog("Out of memory! "+ e.getMessage() + "File: " + candidate);
 		}
+		catch(Exception e)
+		{
+			System.out.println("Error: " + e.getMessage());
+			e.printStackTrace();
+			MetFrag.results.addToCompleteLog("Error! "+ e.getMessage() + "File: " + candidate);
+		}
 	}
 
-
-	public void setSDFDatabase(boolean sDFDatabase) {
-		SDFDatabase = sDFDatabase;
+	public static void setVerbose(boolean _verbose) {
+		verbose = _verbose;
 	}
 
-
-	public boolean isSDFDatabase() {
-		return SDFDatabase;
+	/**
+	 * 
+	 * @param hits
+	 * @throws CDKException
+	 */
+	private void saveFragments(List<IAtomContainer> hits) throws CDKException {
+		File path = new File(this.saveFragmentsPath);
+		if(!path.exists()) {
+			System.err.println("Error: "+this.saveFragmentsPath+" does not exist.");
+			return;
+		}
+		if(!path.isDirectory()) {
+			System.err.println("Error: "+this.saveFragmentsPath+" is not a directory.");
+			return;
+		}
+		if(!path.canRead()) {
+			System.err.println("Error: "+this.saveFragmentsPath+" is not readable.");
+			return;
+		}
+		
+		MoleculeSet molSet = new MoleculeSet();
+		for(int i = 0; i < hits.size(); i++) {
+			IAtomContainer molecule = hits.get(i);
+			AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(molecule);
+			IMolecule molOrig = new Molecule(AtomContainerManipulator.removeHydrogens(molecule));
+			molSet.addAtomContainer(molOrig);
+		}
+	
+		SDFWriter writer1;
+		try {
+			writer1 = new SDFWriter(new FileWriter(new File(this.saveFragmentsPath+"/"+this.sampleName+"_"+this.candidate+"_fragments.sdf")));
+			try {
+				writer1.write(molSet);
+			} catch (CDKException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			writer1.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
 	}
-
+	
+	/**
+	 * 
+	 * @param hits
+	 * @throws CDKException
+	 */
+	private void saveFragments(Vector<PeakMolPair> hits) throws CDKException {
+		File path = new File(this.saveFragmentsPath);
+		Vector<IAtomContainer> fragments = new Vector<IAtomContainer>();
+		if(!path.exists()) {
+			System.err.println("Error: "+this.saveFragmentsPath+" does not exist.");
+			return;
+		}
+		if(!path.isDirectory()) {
+			System.err.println("Error: "+this.saveFragmentsPath+" is not a directory.");
+			return;
+		}
+		if(!path.canRead()) {
+			System.err.println("Error: "+this.saveFragmentsPath+" is not readable.");
+			return;
+		}
+		
+		MoleculeSet molSet = new MoleculeSet();
+		for(int i = 0; i < hits.size(); i++) {
+			IAtomContainer molecule = hits.get(i).getFragment();
+			AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(molecule);
+			IMolecule molOrig = new Molecule(AtomContainerManipulator.removeHydrogens(molecule));
+			molOrig.setProperty("PeakMass", hits.get(i).getPeak().getMass());
+			molSet.addAtomContainer(molOrig);
+			fragments.add(molOrig);
+		}
+		
+		SDFWriter writer1;
+		try {
+			writer1 = new SDFWriter(new FileWriter(new File(this.saveFragmentsPath+System.getProperty("file.separator")+this.sampleName+"_"+this.candidate+"_fragments.sdf")));
+			try {
+				writer1.write(molSet);
+			} catch (CDKException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			writer1.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
+	
+	/**
+	 * 
+	 * @param mol
+	 * @return
+	 */
+	public static boolean isCHNOPSCompound(IAtomContainer mol) {
+		String[] chnops = {"C", "H", "N", "O", "P", "S"};
+		Iterable<IAtom> it_atoms = mol.atoms();
+    	Iterator<IAtom> atoms = it_atoms.iterator();
+    	while(atoms.hasNext()) {
+			IAtom atom = atoms.next();
+			boolean isInside = false;
+			for(String val : chnops) {
+				if(val.compareTo(atom.getSymbol()) == 0) {
+					isInside = true;
+				}
+				if(isInside) break;
+			}
+			if(!isInside) return false;
+    	}
+    	return true;
+	}
+	
+	/**
+	 * 
+	 * @param _candidateSize
+	 */
+	public static void setSizeCandidates(int _candidateSize) {
+		sizeCandidates = _candidateSize;
+	}
 
 	public void setUseMetChem(boolean useMetChem) {
 		this.useMetChem = useMetChem;
 	}
 
-
 	public boolean isUseMetChem() {
 		return useMetChem;
 	}
-
 
 	public void setCandidateMetChem(CandidateMetChem candidateMetChem) {
 		this.candidateMetChem = candidateMetChem;
 	}
 
-
 	public CandidateMetChem getCandidateMetChem() {
 		return candidateMetChem;
 	}
 
-
-	public void setOnlyCHNOPS(boolean onlyCHNOPS) {
-		this.onlyCHNOPS = onlyCHNOPS;
+	public void setSDFDatabase(boolean sDFDatabase) {
+		SDFDatabase = sDFDatabase;
 	}
 
-
-	public boolean isOnlyCHNOPS() {
-		return onlyCHNOPS;
+	public boolean isSDFDatabase() {
+		return SDFDatabase;
 	}
-
-
-	public void setChemspiderToken(String chemspiderToken) {
-		this.chemspiderToken = chemspiderToken;
-	}
-
-
-	public String getChemspiderToken() {
-		return chemspiderToken;
-	}
-
 }
-
-
