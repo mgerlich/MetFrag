@@ -40,6 +40,7 @@ import org.openscience.cdk.MoleculeSet;
 import org.openscience.cdk.exception.CDKException;
 import org.openscience.cdk.interfaces.IAtomContainer;
 import org.openscience.cdk.interfaces.IBond;
+import org.openscience.cdk.interfaces.IMolecularFormula;
 import org.openscience.cdk.interfaces.IMolecule;
 import org.openscience.cdk.interfaces.IBond.Stereo;
 import org.openscience.cdk.io.SDFWriter;
@@ -49,6 +50,7 @@ import org.openscience.cdk.tools.manipulator.AtomContainerManipulator;
 import org.openscience.cdk.tools.manipulator.MolecularFormulaManipulator;
 
 import de.ipbhalle.metfrag.databaseMetChem.CandidateMetChem;
+import de.ipbhalle.metfrag.databaseMetChem.Query;
 import de.ipbhalle.metfrag.fragmenter.Candidates;
 import de.ipbhalle.metfrag.fragmenter.CandidatesMetChem;
 import de.ipbhalle.metfrag.fragmenter.Fragmenter;
@@ -67,6 +69,7 @@ import de.ipbhalle.metfrag.spectrum.CleanUpPeakList;
 import de.ipbhalle.metfrag.spectrum.PeakMolPair;
 import de.ipbhalle.metfrag.spectrum.WrapperSpectrum;
 import de.ipbhalle.metfrag.tools.MolecularFormulaTools;
+import de.ipbhalle.metfrag.tools.PPMTool;
 import de.ipbhalle.metfrag.tools.Writer;
 
 public class MetFrag {
@@ -76,7 +79,8 @@ public class MetFrag {
 	private String date = "";
 	private long timeStart;
 	private int candidateCount = 0;
-		
+	private static Query query = null;
+	
 	/**
 	 * Instantiates a new metFrag object.
 	 * 
@@ -607,14 +611,14 @@ public class MetFrag {
 				candidates.add(idList[i].trim());
 			}
 		}
-		else if(molecularFormula != null && !molecularFormula.equals("") || (databaseID != null && !databaseID.equals("")))
-		{
-//		else {
+//		else if(molecularFormula != null && !molecularFormula.equals("") || (databaseID != null && !databaseID.equals("")))
+//		{
+		else {
 			pw = new PubChemWebService();
 			candidates = Candidates.getOnline(database, databaseID, molecularFormula, exactMass, searchPPM, false, pw, uniqueInchi, chemspiderToken);
 		}
-		else
-			candidates = Candidates.getLocally(database, exactMass, searchPPM, jdbc, username, password, uniqueInchi, chemspiderToken);
+//		else
+//			candidates = Candidates.getLocally(database, exactMass, searchPPM, jdbc, username, password, uniqueInchi, chemspiderToken);
 
 
 		System.out.println("Hits in database: " + candidates.size());
@@ -1199,7 +1203,44 @@ public class MetFrag {
 	}
 	
 	
+	/**
+	 * filter candidates by mass (used for sdf database)
+	 * 
+	 * @param cands
+	 * @param exactMass
+	 * @param searchPPM
+	 * @return
+	 * @throws CloneNotSupportedException
+	 * @throws CDKException
+	 */
+	private static boolean[] filterCandidates(List<IAtomContainer> cands, double exactMass, double searchPPM) throws CloneNotSupportedException, CDKException {
+		boolean[] filteredCands = new boolean[cands.size()];
+		
+		
+		IMolecularFormula molFormula;
+		for(int i = 0; i < cands.size(); i++) {
+			try {
+				IAtomContainer molecule = (IAtomContainer)cands.get(i).clone();
+				AtomContainerManipulator.percieveAtomTypesAndConfigureAtoms(molecule);
+				CDKHydrogenAdder hAdder = CDKHydrogenAdder.getInstance(molecule.getBuilder());
+				hAdder.addImplicitHydrogens(molecule);
+				AtomContainerManipulator.convertImplicitToExplicitHydrogens(molecule);
+				molFormula = MolecularFormulaManipulator.getMolecularFormula(molecule);
+				Double massDoubleOrig = MolecularFormulaTools.getMonoisotopicMass(molFormula);
+				if(Math.abs(massDoubleOrig - exactMass) <= PPMTool.getPPMDeviation(exactMass, searchPPM)) {
+					filteredCands[i] = true;
+				}
+			}
+			catch(Exception e) {
+				continue;
+			}
+		}
+		return filteredCands;
+	}
 	
+	public static Query getQuery() {
+		return query;
+	}
 	
 	
 	/**
