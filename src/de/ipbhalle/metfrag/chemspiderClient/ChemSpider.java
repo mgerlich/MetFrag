@@ -183,10 +183,24 @@ public class ChemSpider {
 		MDLReader reader;
 		List<IAtomContainer> containersList;
 		
-        reader = new MDLReader(new StringReader(mol));
-        ChemFile chemFile = (ChemFile)reader.read((ChemObject)new ChemFile());
-        containersList = ChemFileManipulator.getAllAtomContainers(chemFile);
-        IAtomContainer molecule = containersList.get(0);
+		IAtomContainer molecule = null;
+		try
+		{
+	        reader = new MDLReader(new StringReader(mol));
+	        ChemFile chemFile = (ChemFile)reader.read((ChemObject)new ChemFile());
+	        containersList = ChemFileManipulator.getAllAtomContainers(chemFile);
+	        molecule = containersList.get(0);
+		}
+		catch(Exception e)
+		{
+			System.err.println("Error retrieving chemspider id " + ID + "!");
+			return null;
+		}
+		
+//        reader = new MDLReader(new StringReader(mol));
+//        ChemFile chemFile = (ChemFile)reader.read((ChemObject)new ChemFile());
+//        containersList = ChemFileManipulator.getAllAtomContainers(chemFile);
+//        IAtomContainer molecule = containersList.get(0);
 		
         if(getAll)
         	return molecule;
