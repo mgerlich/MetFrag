@@ -37,7 +37,7 @@ public class CandidatesMetChem {
 		double lowerBound = (exactMass - deviation);
 		double upperBound = (exactMass + deviation);
 		Query query = new Query(username, password, databaseUrl);
-		candidates = query.queryByMass(lowerBound, upperBound, database);		
+		candidates = query.queryByMass(lowerBound, upperBound, database, true);		
 		return candidates;
 	}
 	
@@ -61,7 +61,7 @@ public class CandidatesMetChem {
 	{
 		List<CandidateMetChem> candidates = new ArrayList<CandidateMetChem>();
 		Query query = new Query(username, password, databaseUrl);
-		candidates = query.queryByFormula(formula, database);		
+		candidates = query.queryByFormula(formula, database, true);		
 		return candidates;
 	}
 
