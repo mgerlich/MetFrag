@@ -38,12 +38,16 @@ import java.util.zip.GZIPInputStream;
 
 import javax.xml.rpc.ServiceException;
 
+import net.sf.jniinchi.INCHI_RET;
+
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.transport.http.HTTPConstants;
 import org.openscience.cdk.ChemFile;
 import org.openscience.cdk.DefaultChemObjectBuilder;
 import org.openscience.cdk.exception.CDKException;
 import org.openscience.cdk.exception.InvalidSmilesException;
+import org.openscience.cdk.inchi.InChIGenerator;
+import org.openscience.cdk.inchi.InChIGeneratorFactory;
 import org.openscience.cdk.interfaces.IAtomContainer;
 import org.openscience.cdk.io.MDLV2000Reader;
 import org.openscience.cdk.smiles.SmilesGenerator;
@@ -183,7 +187,7 @@ public class PubChemWebService {
 	 * 
 	 * @throws Exception the exception
 	 */
-	public Vector<String> getHitsbySumFormula(String sumFormula, boolean useProxy) throws Exception
+	public Vector<String> getHitsbySumFormula(String sumFormula, boolean useProxy, boolean uniqueInchi) throws Exception
 	{
 		Vector<String> candidatesString = new Vector<String>();        
 		
@@ -260,41 +264,43 @@ public class PubChemWebService {
 			while ((n = input.read(buffer)) > 0)
 				output.write(buffer, 0, n);
 			output.close();
-			//read the file
-			FileInputStream in = null;
-	        in = new FileInputStream(tempFile);
-	        
-	        //IChemObjectReader cor = null;
-	        //cor = new ReaderFactory().createReader(in);
-	       
-	        MDLV2000Reader reader = new MDLV2000Reader(in);
-	        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
-	        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
-
-		   
-	        
-	        //ReaderFactory factory = new ReaderFactory();
-	        //ISimpleChemObjectReader reader = factory.createReader(in);
-	        //IChemFile content = (IChemFile)reader.read(new ChemFile());
-	        
-	        //IChemFile content = (IChemFile)cor.read(DefaultChemObjectBuilder.getInstance().newChemFile());
-	        
-	        System.out.println("Read the file");
-	        this.containers = ChemFileManipulator.getAllAtomContainers(fileContents);
-	        System.out.println("Got " + containers.size() + " atom containers");
-	        
-	        // Retrieve CIDs
-	        SmilesGenerator generatorSmiles = new SmilesGenerator();
-			for (int i = 0; i < cids.length; i++) {
-				candidatesString.add(cids[i] + "");
-				System.out.println(cids[i]);
-				this.retrievedHits.put(cids[i], generatorSmiles.createSMILES(fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getMolecule(0)));
+			
+			if(uniqueInchi) {
+				candidatesString = filterDuplicatesByInChIKey(tempFile);
 			}
-	        
+			else {
+				//read the file
+				FileInputStream in = null;
+		        in = new FileInputStream(tempFile);
+		        
+		        //IChemObjectReader cor = null;
+		        //cor = new ReaderFactory().createReader(in);
+		       
+		        MDLV2000Reader reader = new MDLV2000Reader(in);
+		        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
+		        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
+
+		        //ReaderFactory factory = new ReaderFactory();
+		        //ISimpleChemObjectReader reader = factory.createReader(in);
+		        //IChemFile content = (IChemFile)reader.read(new ChemFile());
+		        
+		        //IChemFile content = (IChemFile)cor.read(DefaultChemObjectBuilder.getInstance().newChemFile());
+		        
+		        System.out.println("Read the file");
+		        this.containers = ChemFileManipulator.getAllAtomContainers(fileContents);
+		        System.out.println("Got " + containers.size() + " atom containers");
+		        
+		        // Retrieve CIDs
+		        SmilesGenerator generatorSmiles = new SmilesGenerator();
+				for (int i = 0; i < cids.length; i++) {
+					candidatesString.add(cids[i] + "");
+					System.out.println(cids[i]);
+					this.retrievedHits.put(cids[i], generatorSmiles.createSMILES(fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getMolecule(0)));
+				}
+			}
 		}
 		 else {
-			System.out.println("Error: "
-					+ pug_soap.getStatusMessage(downloadKey));
+			System.out.println("Error: " + pug_soap.getStatusMessage(downloadKey));
 		}
 		
 		return candidatesString;
@@ -431,6 +437,157 @@ public class PubChemWebService {
 	}
 	
 	/**
+	 * Search pubchem by exact mass.
+	 * 
+	 * @param mass the mass
+	 * 
+	 * @return the pubchem by mass
+	 * 
+	 * @throws Exception the exception
+	 */
+	public Vector<String> getHitsByMass(double mass, double error, Integer limit, boolean useProxy, boolean uniqueInchi) throws Exception
+	{
+		Vector<String> pubchemCIDs = new Vector<String>();
+		
+		PUGSoap pug_soap = this.pug_locator.getPUGSoap();
+		
+        EUtilsServiceLocator eutils_locator = new EUtilsServiceLocator();
+        EUtilsServiceSoap eutils_soap = eutils_locator.geteUtilsServiceSoap();
+
+		//search "aspirin" in PubChem Compound
+		ESearchRequest request = new ESearchRequest();
+		String db = new String("pccompound");
+		request.setDb(db);
+		
+		double min = mass - error;
+		double max = mass + error;
+		
+		System.out.println("Min: " + min + " Max: " + max);
+		request.setTerm(min + ":" + max + "[EMAS]");
+		// create a history item, and don't return any actual ids in the
+		// SOAP response
+		request.setUsehistory("y");
+		request.setRetMax(limit.toString());
+
+		ESearchResult result = eutils_soap.run_eSearch(request);
+		
+		//String[] idList = result.getIdList();
+		if (result.getQueryKey() == null || result.getQueryKey().length() == 0
+				|| result.getWebEnv() == null
+				|| result.getWebEnv().length() == 0) {
+			throw new Exception("ESearch failed to return query_key and WebEnv");
+		}
+		System.out.println("ESearch returned " + result.getCount() + " hits");
+		
+		
+		// give this Entrez History info to PUG SOAP
+		EntrezKey entrezKey = new EntrezKey(db, result.getQueryKey(), result.getWebEnv());	
+		String listKey = pug_soap.inputEntrez(entrezKey);
+		
+		System.out.println("ListKey = " + listKey);
+		
+		//int[] ids = pug_soap.getIDList(entrezKey.getKey());
+		
+		// Initialize the download; request SDF with gzip compression
+		String downloadKey = pug_soap.download(listKey, FormatType.eFormat_SDF,
+				CompressType.eCompress_None, false);
+		System.out.println("DownloadKey = " + downloadKey);
+
+		// Wait for the download to be prepared
+		StatusType status;
+		while ((status = pug_soap.getOperationStatus(downloadKey)) == StatusType.eStatus_Running
+				|| status == StatusType.eStatus_Queued) {
+			System.out.println("Waiting for download to finish...");
+			Thread.sleep(10000);
+		}
+
+		// On success, get the download URL, save to local file
+		if (status == StatusType.eStatus_Success) {
+			
+			// PROXY
+			if(useProxy)
+			{
+				System.getProperties().put( "ftp.proxySet", "true" );
+			    System.getProperties().put( "ftp.proxyHost", "www.ipb-halle.de" );
+			    System.getProperties().put( "ftp.proxyPort", "3128" );
+			}
+		    
+			URL url = new URL(pug_soap.getDownloadUrl(downloadKey));
+			System.out.println("Success! Download URL = " + url.toString());
+
+			// get input stream from URL
+			URLConnection fetch = url.openConnection();
+			InputStream input = fetch.getInputStream();
+
+			// open local file based on the URL file name
+            File tempFile = File.createTempFile(url.getFile().substring(url.getFile().lastIndexOf('/')), ".sdf");
+            // Delete temp file when program exits.
+            tempFile.deleteOnExit();
+            FileOutputStream output = new FileOutputStream(tempFile);
+			System.out.println("Writing data to " + tempFile.getAbsolutePath() + tempFile.getName());
+
+			// buffered read/write
+			byte[] buffer = new byte[10000];
+			int n;
+			while ((n = input.read(buffer)) > 0)
+				output.write(buffer, 0, n);
+			
+			//now read in the file
+			FileInputStream in = null;
+	        in = new FileInputStream(tempFile);
+	        
+	        //IChemObjectReader cor = null;
+	        //cor = new ReaderFactory().createReader(in);
+	       
+	        MDLV2000Reader reader = new MDLV2000Reader(in);
+	        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
+	        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
+	        
+	        SmilesGenerator generatorSmiles = new SmilesGenerator();
+	        Vector<String> cids_inchi_keys = new Vector<String>();
+	        for (int i = 0; i < fileContents.getChemSequence(0).getChemModelCount(); i++) {
+	        	Map<Object, Object> properties = fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getAtomContainer(0).getProperties();
+        	    String pubchemCID = (String) properties.get("PUBCHEM_COMPOUND_CID");
+	        	boolean insert = true;
+	        	this.containers.add(fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getAtomContainer(0));
+        		this.retrievedHits.put(Integer.parseInt(properties.get("PUBCHEM_COMPOUND_CID").toString()), generatorSmiles.createSMILES(fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getMolecule(0)));
+        		if(uniqueInchi) {
+	        		IAtomContainer molecule1 = getMol(pubchemCID);
+					InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
+					if(igf != null) {
+						InChIGenerator ig = igf.getInChIGenerator(molecule1);
+						if(ig != null) {
+							String inchi = ig.getInchiKey();
+							if(inchi != null) {
+								String first_part = inchi.split("-")[0];
+								if(cids_inchi_keys.contains(first_part)) insert = false;
+								else cids_inchi_keys.add(first_part);
+							}
+						}
+					}
+				}
+	        	if(!insert) {
+	        	    this.containers.remove(this.containers.size() - 1);
+	        	    this.retrievedHits.remove(Integer.parseInt(properties.get("PUBCHEM_COMPOUND_CID").toString()));
+	        	}
+	        	else {
+	        		pubchemCIDs.add(pubchemCID);
+	        	    System.out.println(pubchemCID);
+	        	}
+	        }
+
+	        System.out.println("Read the file");
+			
+		} else {
+			System.out.println("Error: "
+					+ pug_soap.getStatusMessage(downloadKey));
+		}
+		
+		return pubchemCIDs;
+		
+	}
+	
+	/**
 	 * when ids are given
 	 * 
 	 * @param ids
@@ -512,6 +669,187 @@ public class PubChemWebService {
 		}
 		
 		return cids;
+	}
+	
+	/**
+	 * download directly over http because of server errors when downloading over pug soap
+	 * 
+	 * @author c-ruttkies
+	 * 
+	 * @param mass
+	 * @param error
+	 * @param limit
+	 * @return
+	 */
+	public Vector<String> getHitsByMassHTTP(double mass, double error, int limit, boolean uniqueInchi) {
+		Vector<String> cids = new Vector<String>();
+		double minMass = mass - error;
+		double maxMass = mass + error;
+
+		String urlname = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+				+ "?db=pccompound"
+				+ "&term=" + minMass + "[ExactMass]:" + maxMass + "[ExactMass]"
+				+ "&RetMax=" + limit;
+		InputStream stream = getInputStreamFromURL(urlname);
+		
+		if(stream == null) return cids;
+		try {
+			BufferedReader breader = new BufferedReader(new InputStreamReader(stream));
+			String line = "";
+			while((line = breader.readLine()) != null) {
+				if(line.contains("<Id>") && line.contains("</Id>")) {
+					cids.add(line.replaceAll("\\D", "").trim());
+				}
+			}
+			stream.close();
+			breader.close();
+		} catch (IOException e) {
+			System.err.println("Error: Could not open result stream when using Pubchem HTTP mass search!");
+			System.err.println(urlname);
+			return cids;
+		}
+		
+		File tempFile = null;
+		try {
+			tempFile = File.createTempFile(getRandomString(20), ".sdf");
+	        if(tempFile != null) tempFile.deleteOnExit();
+		} catch (IOException e) {
+			System.err.println("Error: Could not open result stream when using Pubchem HTTP mass search!");
+			System.err.println(urlname);
+			return cids;
+		}
+
+		try {
+			boolean success = savingRetrievedHits(tempFile, cids);
+			if(!success) return new Vector<String>();
+		} catch (AxisFault e) {
+			System.err.println("Error: Could not open result stream when using Pubchem HTTP mass search!");
+			System.err.println(urlname);
+		}
+		
+		if(uniqueInchi) {
+			cids = filterDuplicatesByInChIKey(tempFile);
+			
+//			cids = new Vector<String>();
+//			
+//			//now read in the file
+//			FileInputStream in = null;
+//	        try {
+//				in = new FileInputStream(tempFile);
+//				//IChemObjectReader cor = null;
+//		        //cor = new ReaderFactory().createReader(in);
+//		       
+//		        MDLV2000Reader reader = new MDLV2000Reader(in);
+//		        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
+//		        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
+//		        
+//		        SmilesGenerator generatorSmiles = new SmilesGenerator();
+//		        InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
+//		        Vector<String> cids_inchi_keys = new Vector<String>();
+//		        for (int i = 0; i < fileContents.getChemSequence(0).getChemModelCount(); i++) {
+//		        	Map<Object, Object> properties = fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getAtomContainer(0).getProperties();
+//	        	    String pubchemCID = (String) properties.get("PUBCHEM_COMPOUND_CID");
+//		        	boolean insert = true;
+//		        	this.containers.add(fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getAtomContainer(0));
+//	        		this.retrievedHits.put(Integer.parseInt(properties.get("PUBCHEM_COMPOUND_CID").toString()), generatorSmiles.createSMILES(fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getMolecule(0)));
+//	        		IAtomContainer molecule1 = getMol(pubchemCID);
+//					if(igf != null) {
+//						InChIGenerator ig = igf.getInChIGenerator(molecule1);
+//						if(ig != null) {
+//							if(ig.getReturnStatus().equals(INCHI_RET.OKAY) | ig.getReturnStatus().equals(INCHI_RET.WARNING)) {
+//								String inchi = ig.getInchiKey();
+//								if(inchi != null) {
+//									String first_part = inchi.split("-")[0];
+//									if(cids_inchi_keys.contains(first_part)) insert = false;
+//									else cids_inchi_keys.add(first_part);
+//								}
+//							}
+//						}
+//					}
+//					
+//		        	if(!insert) {
+//		        	    this.containers.remove(this.containers.size() - 1);
+//		        	    this.retrievedHits.remove(Integer.parseInt(properties.get("PUBCHEM_COMPOUND_CID").toString()));
+//		        	    System.out.println("Removed " + pubchemCID);
+//		        	}
+//		        	else {
+//		        		cids.add(pubchemCID);
+//		        	    System.out.println(pubchemCID);
+//		        	}
+//		        }
+//
+//		        System.out.println("Read the file");
+//			} catch (FileNotFoundException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			} catch (CDKException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+		}
+		
+		return cids;
+	}
+	
+	private Vector<String> filterDuplicatesByInChIKey(File file) {
+		Vector<String> cids = new Vector<String>();
+		
+		//now read in the file
+		FileInputStream in = null;
+        try {
+			in = new FileInputStream(file);
+			//IChemObjectReader cor = null;
+	        //cor = new ReaderFactory().createReader(in);
+	       
+	        MDLV2000Reader reader = new MDLV2000Reader(in);
+	        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
+	        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
+	        
+	        SmilesGenerator generatorSmiles = new SmilesGenerator();
+	        InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
+	        Vector<String> cids_inchi_keys = new Vector<String>();
+	        for (int i = 0; i < fileContents.getChemSequence(0).getChemModelCount(); i++) {
+	        	Map<Object, Object> properties = fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getAtomContainer(0).getProperties();
+        	    String pubchemCID = (String) properties.get("PUBCHEM_COMPOUND_CID");
+	        	boolean insert = true;
+	        	this.containers.add(fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getAtomContainer(0));
+        		this.retrievedHits.put(Integer.parseInt(properties.get("PUBCHEM_COMPOUND_CID").toString()), generatorSmiles.createSMILES(fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getMolecule(0)));
+        		IAtomContainer molecule1 = getMol(pubchemCID);
+				if(igf != null) {
+					InChIGenerator ig = igf.getInChIGenerator(molecule1);
+					if(ig != null) {
+						if(ig.getReturnStatus().equals(INCHI_RET.OKAY) | ig.getReturnStatus().equals(INCHI_RET.WARNING)) {
+							String inchi = ig.getInchiKey();
+							if(inchi != null) {
+								String first_part = inchi.split("-")[0];
+								if(cids_inchi_keys.contains(first_part)) insert = false;
+								else cids_inchi_keys.add(first_part);
+							}
+						}
+					}
+				}
+				
+	        	if(!insert) {
+	        	    this.containers.remove(this.containers.size() - 1);
+	        	    this.retrievedHits.remove(Integer.parseInt(properties.get("PUBCHEM_COMPOUND_CID").toString()));
+	        	    System.out.println("Removed " + pubchemCID);
+	        	}
+	        	else {
+	        		cids.add(pubchemCID);
+	        	    System.out.println(pubchemCID);
+	        	}
+	        }
+
+	        System.out.println("Read the file");
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (CDKException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+        
+        return cids;
 	}
 	
 	/**
