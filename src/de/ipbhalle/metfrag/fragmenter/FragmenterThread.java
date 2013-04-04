@@ -182,7 +182,7 @@ public class FragmenterThread implements Runnable{
 			boolean neutralLossAdd, boolean bondEnergyScoring, boolean isOnlyBreakSelectedBonds, Config c,
 			boolean generateFragmentsInMemory)
 	{
-		this.setCandidateMetChem(candidate);
+		this.candidateMetChem = candidate;
 		this.candidate = candidate.getAccession();
 		this.pw = pw;
 		this.database = database;
@@ -198,7 +198,8 @@ public class FragmenterThread implements Runnable{
 		this.treeDepth = treeDepth;
 		this.c = c;
 		this.generateFragmentsInMemory = generateFragmentsInMemory;
-		setUseMetChem(true);
+		this.useMetChem = true;
+		this.localdb = true;
 	}
 	
 	/**
@@ -454,7 +455,12 @@ public class FragmenterThread implements Runnable{
 		{	    
 			if(this.candidateStructure != null) {
 				molecule = this.candidateStructure;
-			} else if(this.localdb) {
+			}
+			else if(this.useMetChem)
+			{
+				molecule = CandidatesMetChem.getCompound(candidateMetChem.getCompoundID(), c.getJdbcPostgres(), c.getUsernamePostgres(), c.getPasswordPostgres());
+			}
+			else if(this.localdb) {
 				Query query = MetFrag.getQuery();
 				if(query != null) molecule = query.getCompoundUsingIdentifierConnectionOpen(this.candidate, this.database);
 			}
