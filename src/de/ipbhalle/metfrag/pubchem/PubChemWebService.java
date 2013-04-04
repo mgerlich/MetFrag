@@ -170,6 +170,11 @@ public class PubChemWebService {
 	        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
 	        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
 	        ac = fileContents.getChemSequence(0).getChemModel(0).getMoleculeSet().getAtomContainer(0);
+	        
+	        // close streams
+	        reader.close();
+	        gin.close();
+	        in.close();
         } else {
             System.out.println("Error: ");            
         }
@@ -280,6 +285,10 @@ public class PubChemWebService {
 		        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
 		        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
 
+		        // close streams
+		        reader.close();
+		        in.close();
+		        
 		        //ReaderFactory factory = new ReaderFactory();
 		        //ISimpleChemObjectReader reader = factory.createReader(in);
 		        //IChemFile content = (IChemFile)reader.read(new ChemFile());
@@ -416,6 +425,10 @@ public class PubChemWebService {
 	        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
 	        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
 	        
+	        // close streams
+	        reader.close();
+	        in.close();
+	        
 	        SmilesGenerator generatorSmiles = new SmilesGenerator();
 	        for (int i = 0; i < fileContents.getChemSequence(0).getChemModelCount(); i++) {
 				this.containers.add(fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getAtomContainer(0));
@@ -514,11 +527,11 @@ public class PubChemWebService {
 		    
 			URL url = new URL(pug_soap.getDownloadUrl(downloadKey));
 			System.out.println("Success! Download URL = " + url.toString());
-
+			
 			// get input stream from URL
 			URLConnection fetch = url.openConnection();
 			InputStream input = fetch.getInputStream();
-
+			
 			// open local file based on the URL file name
             File tempFile = File.createTempFile(url.getFile().substring(url.getFile().lastIndexOf('/')), ".sdf");
             // Delete temp file when program exits.
@@ -531,10 +544,10 @@ public class PubChemWebService {
 			int n;
 			while ((n = input.read(buffer)) > 0)
 				output.write(buffer, 0, n);
+			output.close();
 			
 			//now read in the file
-			FileInputStream in = null;
-	        in = new FileInputStream(tempFile);
+			FileInputStream in = new FileInputStream(tempFile);
 	        
 	        //IChemObjectReader cor = null;
 	        //cor = new ReaderFactory().createReader(in);
@@ -542,6 +555,10 @@ public class PubChemWebService {
 	        MDLV2000Reader reader = new MDLV2000Reader(in);
 	        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
 	        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
+	        
+	        // close streams
+	        reader.close();
+	        in.close();
 	        
 	        SmilesGenerator generatorSmiles = new SmilesGenerator();
 	        Vector<String> cids_inchi_keys = new Vector<String>();
@@ -575,7 +592,7 @@ public class PubChemWebService {
 	        	    System.out.println(pubchemCID);
 	        	}
 	        }
-
+	        
 	        System.out.println("Read the file");
 			
 		} else {
@@ -805,6 +822,10 @@ public class PubChemWebService {
 	        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
 	        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
 	        
+	        // close streams
+	        reader.close();
+	        in.close();
+	        
 	        SmilesGenerator generatorSmiles = new SmilesGenerator();
 	        InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
 	        Vector<String> cids_inchi_keys = new Vector<String>();
@@ -845,6 +866,9 @@ public class PubChemWebService {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (CDKException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
@@ -1043,17 +1067,31 @@ public class PubChemWebService {
 		} catch (FileNotFoundException e) {
 			System.err.println("Error: Pubchem sdf download failed. Please contact cruttkies@ipb-halle.de!");
 			return false; 
+		} finally {
+			try {
+				in.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
         
         MDLV2000Reader reader = new MDLV2000Reader(in);
-        ChemFile fileContents;
+        ChemFile fileContents = null;
 		try {
 			fileContents = (ChemFile)reader.read(new ChemFile());
+			in.close();
+			reader.close();
 		} catch (CDKException e) {
 			System.err.println("Error: Pubchem sdf download failed. Please contact cruttkies@ipb-halle.de!");
 			e.printStackTrace();
 			return false; 
+		} catch (IOException e) {
+			System.err.println("Error: Pubchem sdf download failed. Please contact cruttkies@ipb-halle.de!");
+			e.printStackTrace();
+			return false; 
 		}
+        
         
         SmilesGenerator generatorSmiles = new SmilesGenerator();
         for (int i = 0; i < fileContents.getChemSequence(0).getChemModelCount(); i++) {
@@ -1206,6 +1244,10 @@ public class PubChemWebService {
 	        MDLV2000Reader reader = new MDLV2000Reader(in);
 	        ChemFile fileContents = (ChemFile)reader.read(new ChemFile());
 	        System.out.println("Got " + fileContents.getChemSequence(0).getChemModelCount() + " atom containers");
+	        
+	        // close streams
+	        reader.close();
+	        in.close();
 	        
 	        SmilesGenerator generatorSmiles = new SmilesGenerator();
 	        for (int i = 0; i < fileContents.getChemSequence(0).getChemModelCount(); i++) {
