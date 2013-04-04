@@ -164,11 +164,14 @@ public class Candidates {
 		{
 			//if(molecularFormula != "")
 			if(!molecularFormula.isEmpty())
-				//candidates = pubchem.getHitsbySumFormula(molecularFormula, useIPBProxy, uniqueInchi);
-				candidates = pubchem.getHitsBySumFormulaHTTP(molecularFormula);
+				candidates = pubchem.getHitsbySumFormula(molecularFormula, useIPBProxy, uniqueInchi);
+				//candidates = pubchem.getHitsbySumFormula(molecularFormula, useIPBProxy);
+			
+				//candidates = pubchem.getHitsBySumFormulaHTTP(molecularFormula);
 			else
 				//candidates = pubchem.getHitsByMass(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE, useIPBProxy, uniqueInchi);
-				candidates = pubchem.getHitsByMassHTTP(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE);
+				//candidates = pubchem.getHitsByMassHTTP(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE);
+				candidates = pubchem.getHitsByMassHTTP(exactMass, (PPMTool.getPPMDeviation(exactMass, searchPPM)), Integer.MAX_VALUE, uniqueInchi);
 		}
 		else if (!databaseID.equals(""))
 		{	
