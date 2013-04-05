@@ -21,6 +21,7 @@
 package de.ipbhalle.metfrag.read;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.ArrayList;
@@ -30,6 +31,7 @@ import org.openscience.cdk.ChemFile;
 import org.openscience.cdk.ChemObject;
 import org.openscience.cdk.exception.CDKException;
 import org.openscience.cdk.interfaces.IAtomContainer;
+import org.openscience.cdk.io.MDLReader;
 import org.openscience.cdk.io.MDLV2000Reader;
 import org.openscience.cdk.tools.CDKHydrogenAdder;
 import org.openscience.cdk.tools.manipulator.AtomContainerManipulator;
@@ -49,9 +51,10 @@ public class SDFFile {
 	 * @throws FileNotFoundException the file not found exception
 	 * @throws CDKException the CDK exception
 	 */
-	public static List<IAtomContainer> ReadSDFFile(String path) throws FileNotFoundException, CDKException
+	public static List<IAtomContainer> ReadSDFFile(String path) throws FileNotFoundException
 	{
-		MDLV2000Reader reader;
+		//MDLV2000Reader reader;
+		MDLReader reader;
 		List<IAtomContainer> containersList;
 		List<IAtomContainer> ret = new ArrayList<IAtomContainer>();
 		
@@ -59,13 +62,19 @@ public class SDFFile {
 		
 		if(f.isFile())
 		{
-			reader = new MDLV2000Reader(new FileReader(f));
-	        ChemFile chemFile = (ChemFile)reader.read((ChemObject)new ChemFile());
-	        containersList = ChemFileManipulator.getAllAtomContainers(chemFile);
-	        for (IAtomContainer container: containersList) {
-	        	ret.add(container);
+			//reader = new MDLV2000Reader(new FileReader(f));
+			reader = new MDLReader(new FileInputStream(f));
+			ChemFile chemFile = null;
+			try {
+				chemFile = (ChemFile) reader.read((ChemObject) new ChemFile());
+			} catch (CDKException e) {
+				System.err.println("Error reading SDF file " + f.getAbsolutePath());
+				return ret;
 			}
-	        
+			containersList = ChemFileManipulator.getAllAtomContainers(chemFile);
+			for (IAtomContainer container : containersList) {
+				ret.add(container);
+			}
 		}
 		else
 		{

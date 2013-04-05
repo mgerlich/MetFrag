@@ -389,8 +389,9 @@ public class MetFrag {
 			
 		for (int c = 0; c < candidates.size(); c++) {
 			
-			if(c > limit)
-				break;
+			// disabled limit as it is not useful for SDF
+//			if(c > limit)
+//				break;
 			
 			threadExecutor.execute(new FragmenterThread(Integer.toString(c), "SDF", spectrum, mzabs, mzppm, 
 					molecularFormulaRedundancyCheck, breakAromaticRings, treeDepth, false, hydrogenTest, neutralLossInEveryLayer, 
