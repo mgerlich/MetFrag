@@ -857,7 +857,7 @@ public class PubChemWebService {
 	        	}
 	        	else {
 	        		cids.add(pubchemCID);
-	        	    System.out.println(pubchemCID);
+	        	    //System.out.println(pubchemCID);
 	        	}
 	        }
 
@@ -1067,13 +1067,6 @@ public class PubChemWebService {
 		} catch (FileNotFoundException e) {
 			System.err.println("Error: Pubchem sdf download failed. Please contact cruttkies@ipb-halle.de!");
 			return false; 
-		} finally {
-			try {
-				in.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 		}
         
         MDLV2000Reader reader = new MDLV2000Reader(in);
@@ -1331,5 +1324,5 @@ public class PubChemWebService {
 	public void setVerbose(boolean val) {
 		this.verbose = val;
 	}
-	
+
 }
