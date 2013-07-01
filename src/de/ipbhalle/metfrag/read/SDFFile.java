@@ -53,8 +53,8 @@ public class SDFFile {
 	 */
 	public static List<IAtomContainer> ReadSDFFile(String path) throws FileNotFoundException
 	{
-		//MDLV2000Reader reader;
-		MDLReader reader;
+		MDLV2000Reader reader;
+		//MDLReader reader;
 		List<IAtomContainer> containersList;
 		List<IAtomContainer> ret = new ArrayList<IAtomContainer>();
 		
@@ -62,18 +62,18 @@ public class SDFFile {
 		
 		if(f.isFile())
 		{
-			//reader = new MDLV2000Reader(new FileReader(f));
-			reader = new MDLReader(new FileInputStream(f));
+			reader = new MDLV2000Reader(new FileReader(f));
+			//reader = new MDLReader(new FileInputStream(f));
 			ChemFile chemFile = null;
 			try {
 				chemFile = (ChemFile) reader.read((ChemObject) new ChemFile());
+				containersList = ChemFileManipulator.getAllAtomContainers(chemFile);
+				for (IAtomContainer container : containersList) {
+					ret.add(container);
+				}
 			} catch (CDKException e) {
 				System.err.println("Error reading SDF file " + f.getAbsolutePath());
 				return ret;
-			}
-			containersList = ChemFileManipulator.getAllAtomContainers(chemFile);
-			for (IAtomContainer container : containersList) {
-				ret.add(container);
 			}
 		}
 		else
@@ -88,7 +88,10 @@ public class SDFFile {
 	
 	public static void main(String[] args) {
 		try {
-			List<IAtomContainer> list = ReadSDFFile("/vol/data_extern/emma.schymanski@ufz.de/ufzleipzig/100spec/001_61627_C9H16_struct_wM_END.sdf");
+			//List<IAtomContainer> list = ReadSDFFile("/vol/data_extern/emma.schymanski@ufz.de/ufzleipzig/100spec/001_61627_C9H16_struct_wM_END.sdf");
+			//List<IAtomContainer> list = ReadSDFFile("/home/mgerlich/projects/UFZ_Leipzig/cotinine_ChemSpider.sdf");
+			List<IAtomContainer> list = ReadSDFFile("/home/mgerlich/projects/metfusion_1099spectra_reference/PB000465_metfrag.sdf");
+					
 			for (IAtomContainer molecule : list) {
 				try
 		        {
@@ -98,6 +101,10 @@ public class SDFFile {
 			        hAdder.addImplicitHydrogens(molecule);
 			        AtomContainerManipulator.convertImplicitToExplicitHydrogens(molecule);
 		        }
+				catch (CDKException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 		        //there is a bug in cdk??
 		        catch(IllegalArgumentException e)
 	            {
@@ -110,10 +117,7 @@ public class SDFFile {
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (CDKException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		} 
 	}
 
 }
