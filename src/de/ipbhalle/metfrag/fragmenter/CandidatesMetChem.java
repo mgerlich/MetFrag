@@ -23,6 +23,7 @@ public class CandidatesMetChem {
 	 * @param databaseUrl the database url
 	 * @param username the username
 	 * @param password the password
+	 * @param uniqueInchi boolean indicating filtering of non-unique compounds (true) or keeping duplicates (false)
 	 * 
 	 * @return the locally
 	 * 
@@ -30,14 +31,15 @@ public class CandidatesMetChem {
 	 * @throws ClassNotFoundException the class not found exception
 	 * @throws RemoteException the remote exception
 	 */
-	public static List<CandidateMetChem> queryMass(String database, double exactMass, double searchPPM, String databaseUrl, String username, String password) throws SQLException, ClassNotFoundException, RemoteException
+	public static List<CandidateMetChem> queryMass(String database, double exactMass, double searchPPM, 
+			String databaseUrl, String username, String password, boolean uniqueInchi) throws SQLException, ClassNotFoundException, RemoteException
 	{
 		List<CandidateMetChem> candidates = new ArrayList<CandidateMetChem>();
 		double deviation =PPMTool.getPPMDeviation(exactMass, searchPPM);
 		double lowerBound = (exactMass - deviation);
 		double upperBound = (exactMass + deviation);
 		Query query = new Query(username, password, databaseUrl);
-		candidates = query.queryByMass(lowerBound, upperBound, database, true);		
+		candidates = query.queryByMass(lowerBound, upperBound, database, uniqueInchi);		
 		return candidates;
 	}
 	
@@ -50,6 +52,7 @@ public class CandidatesMetChem {
 	 * @param databaseUrl the database url
 	 * @param username the username
 	 * @param password the password
+	 * @param uniqueInchi boolean indicating filtering of non-unique compounds (true) or keeping duplicates (false)
 	 * 
 	 * @return the locally
 	 * 
@@ -57,11 +60,12 @@ public class CandidatesMetChem {
 	 * @throws ClassNotFoundException the class not found exception
 	 * @throws RemoteException the remote exception
 	 */
-	public static List<CandidateMetChem> queryFormula(String database, String formula, String databaseUrl, String username, String password) throws SQLException, ClassNotFoundException, RemoteException
+	public static List<CandidateMetChem> queryFormula(String database, String formula, String databaseUrl, 
+			String username, String password, boolean uniqueInchi) throws SQLException, ClassNotFoundException, RemoteException
 	{
 		List<CandidateMetChem> candidates = new ArrayList<CandidateMetChem>();
 		Query query = new Query(username, password, databaseUrl);
-		candidates = query.queryByFormula(formula, database, true);		
+		candidates = query.queryByFormula(formula, database, uniqueInchi);		
 		return candidates;
 	}
 
