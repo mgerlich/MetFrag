@@ -829,7 +829,8 @@ public class PubChemWebService {
 	        SmilesGenerator generatorSmiles = new SmilesGenerator();
 	        InChIGeneratorFactory igf = InChIGeneratorFactory.getInstance();
 	        Vector<String> cids_inchi_keys = new Vector<String>();
-	        for (int i = 0; i < fileContents.getChemSequence(0).getChemModelCount(); i++) {
+	        //for (int i = 0; i < fileContents.getChemSequence(0).getChemModelCount(); i++) {
+	        for (int i = fileContents.getChemSequence(0).getChemModelCount()-1; i >= 0 ; i--) {		// read in file in reverse order, smallest ID first
 	        	Map<Object, Object> properties = fileContents.getChemSequence(0).getChemModel(i).getMoleculeSet().getAtomContainer(0).getProperties();
         	    String pubchemCID = (String) properties.get("PUBCHEM_COMPOUND_CID");
 	        	boolean insert = true;
@@ -857,7 +858,7 @@ public class PubChemWebService {
 	        	}
 	        	else {
 	        		cids.add(pubchemCID);
-	        	    //System.out.println(pubchemCID);
+	        	    System.out.println(pubchemCID);
 	        	}
 	        }
 
@@ -951,7 +952,8 @@ public class PubChemWebService {
 		d.setECompress(gov.nih.nlm.ncbi.pubchemAxis2.CompressType.eCompress_None);
 		d.setUse3D(false);
 		int[] cids = new int[cidsVec.size()];
-		for(int i = 0; i < cidsVec.size(); i++) {
+		//for(int i = 0; i < cidsVec.size(); i++) {
+		for(int i = cidsVec.size()-1; i >= 0 ; i--) {	// reverse order, lowest ID now first
 			try {
 				cids[i] = Integer.parseInt(cidsVec.get(i));
 			} catch(java.lang.NumberFormatException e) {
