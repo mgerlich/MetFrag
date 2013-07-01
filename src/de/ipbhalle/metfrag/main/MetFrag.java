@@ -478,16 +478,17 @@ public class MetFrag {
 	public static List<MetFragResult> startConvenienceLocal(String database, String databaseID, String molecularFormula, Double exactMass, WrapperSpectrum spectrum, boolean useProxy, 
 			double mzabs, double mzppm, double searchPPM, boolean molecularFormulaRedundancyCheck, boolean breakAromaticRings, int treeDepth,
 			boolean hydrogenTest, boolean neutralLossInEveryLayer, boolean bondEnergyScoring, boolean breakOnlySelectedBonds, int limit, 
-			String jdbc, String username, String password, int maxNeutralLossCombination, boolean onlyCHNOPS, String chemspiderToken) throws Exception
+			String jdbc, String username, String password, int maxNeutralLossCombination, boolean onlyCHNOPS, String chemspiderToken,
+			boolean uniqueInchi) throws Exception
 	{
 		
 		PubChemWebService pw = null;
 		results = new FragmenterResult();
 		List<CandidateMetChem> candidates = null;
 		if(molecularFormula != null && !molecularFormula.equals(""))
-			candidates = CandidatesMetChem.queryFormula(database, molecularFormula, jdbc, username, password);
+			candidates = CandidatesMetChem.queryFormula(database, molecularFormula, jdbc, username, password, uniqueInchi);
 		else
-			candidates = CandidatesMetChem.queryMass(database, exactMass, searchPPM, jdbc, username, password);
+			candidates = CandidatesMetChem.queryMass(database, exactMass, searchPPM, jdbc, username, password, uniqueInchi);
 
 		System.out.println("Hits in database: " + candidates.size());
 		
@@ -606,8 +607,15 @@ public class MetFrag {
 		List<String> candidates = null;
 		// disabled for online-only mode
 		if(databaseID != null && !databaseID.equals("")) {
+			databaseID = databaseID.trim();
 			candidates = new Vector<String>();
-			String[] idList = databaseID.split(",");
+			String sepComma = ",", sepSpace = " ";
+			String[] idList = null;
+			if(databaseID.contains(sepComma))
+				idList = databaseID.split(sepComma);
+			else if(databaseID.contains(sepSpace))
+				idList = databaseID.split(sepSpace);
+			
 			for (int i = 0; i < idList.length; i++) {
 				candidates.add(idList[i].trim());
 			}
@@ -637,9 +645,13 @@ public class MetFrag {
 			if(c > limit)
 				break;
 			
-			threadExecutor.execute(new FragmenterThread(candidates.get(c), database, pw, spectrum, mzabs, mzppm, 
+//			threadExecutor.execute(new FragmenterThread(candidates.get(c), database, pw, spectrum, mzabs, mzppm, 
+//					molecularFormulaRedundancyCheck, breakAromaticRings, treeDepth, false, hydrogenTest, neutralLossInEveryLayer, 
+//					bondEnergyScoring, breakOnlySelectedBonds, null, generateFragmentsInMemory, jdbc, username, password, onlyCHNOPS, chemspiderToken));
+			FragmenterThread ft = new FragmenterThread(candidates.get(c), database, pw, spectrum, mzabs, mzppm, 
 					molecularFormulaRedundancyCheck, breakAromaticRings, treeDepth, false, hydrogenTest, neutralLossInEveryLayer, 
-					bondEnergyScoring, breakOnlySelectedBonds, null, generateFragmentsInMemory, jdbc, username, password, onlyCHNOPS, chemspiderToken));		
+					bondEnergyScoring, breakOnlySelectedBonds, null, generateFragmentsInMemory, jdbc, username, password, onlyCHNOPS, chemspiderToken);
+			threadExecutor.execute(ft);
 		}
 		
 		threadExecutor.shutdown();
@@ -834,9 +846,11 @@ public class MetFrag {
 		WrapperSpectrum spectrum = new WrapperSpectrum(config.getFolder() + file);
 		
 		String database = config.getDatabase();
+		boolean uniqueInchi = false;
 		
 		PubChemWebService pubchem = null;
-		List<CandidateMetChem> candidates = CandidatesMetChem.queryMass(database, spectrum.getExactMass(), config.getSearchPPM(), config.getJdbcPostgres(), config.getUsernamePostgres(), config.getPasswordPostgres());
+		List<CandidateMetChem> candidates = CandidatesMetChem.queryMass(database, spectrum.getExactMass(), config.getSearchPPM(), 
+				config.getJdbcPostgres(), config.getUsernamePostgres(), config.getPasswordPostgres(), uniqueInchi);
 		
 //		this.candidateCount = candidates.size();
 		results.addToCompleteLog("\n*****************************************************\n\n");
@@ -1251,12 +1265,19 @@ public class MetFrag {
 	 * @param args the arguments
 	 */
 	public static void main(String[] args) {
-		WrapperSpectrum spectrum = new WrapperSpectrum("/home/mgerlich/Datasets/allSpectra/PR100337.txt");
+		WrapperSpectrum spectrum = new WrapperSpectrum("/home/mgerlich/Datasets/allSpectra/CO000046.txt");
+		boolean uniqueInchi = true;
+		
 		try {
-			List<MetFragResult> result = MetFrag.startConvenienceMetFusion("pubchem", "", "", 149.10519, spectrum, 
+//			List<MetFragResult> result = MetFrag.startConvenienceMetFusion("pubchem", "", "", 180.064726, spectrum, 
+//					false, 0.01, 10, 10, true, true, 2, 
+//					true, false, true, false, 20000, "jdbc:mysql://rdbms/MetFrag", "swolf", "populusromanus", 
+//					true, true, true, "eeca1d0f-4c03-4d81-aa96-328cdccf171a");
+			List<MetFragResult> result = MetFrag.startConvenienceLocal("chebi", "", "", 180.064726d, spectrum, 
 					false, 0.01, 10, 10, true, true, 2, 
-					true, false, true, false, 5000, "jdbc:mysql://rdbms/MetFrag", "swolf", "populusromanus", 
-					true, true, false, "eeca1d0f-4c03-4d81-aa96-328cdccf171a");
+					true, false, true, false, 20000, "jdbc:postgresql://rdbms2.ipb-sub.ipb-halle.de:5432/metchem", "metchemro", "",
+					20, true, "eeca1d0f-4c03-4d81-aa96-328cdccf171a", uniqueInchi);
+
 			System.out.println("result# -> " + result.size());
 			
 			int counterBad = 0;
